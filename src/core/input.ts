@@ -87,6 +87,17 @@ export class InputManager {
     if (e.code === 'Escape') {
       this.inputState.back = true;
     }
+    // Confirm actions (Enter, Space)
+    if (e.code === 'Enter' || e.code === 'Space') {
+      this.inputState.confirm = true;
+    }
+    // Keyboard zoom (=/- or +/-, per spec A6)
+    if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+      this.inputState.zoom = Math.min(2, this.inputState.zoom + 0.1);
+    }
+    if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+      this.inputState.zoom = Math.max(0.5, this.inputState.zoom - 0.1);
+    }
   }
 
   private onKeyUp(e: KeyboardEvent): void {
@@ -154,6 +165,26 @@ export class InputManager {
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
+      // Check for zoom button taps (per spec A6 - mobile zoom buttons)
+      // Buttons are positioned at: right edge - 60px, vertically centered
+      const buttonSize = 40;
+      const buttonX = rect.width - 60;
+      const buttonCenterY = rect.height / 2;
+      const zoomInY = buttonCenterY - buttonSize - 10;
+      const zoomOutY = buttonCenterY + 10;
+
+      // Check zoom in button (+)
+      if (this.isPointInButton(x, y, buttonX, zoomInY, buttonSize)) {
+        this.inputState.zoom = Math.min(2, this.inputState.zoom + 0.15);
+        return; // Consume this touch for zoom
+      }
+
+      // Check zoom out button (-)
+      if (this.isPointInButton(x, y, buttonX, zoomOutY, buttonSize)) {
+        this.inputState.zoom = Math.max(0.5, this.inputState.zoom - 0.15);
+        return; // Consume this touch for zoom
+      }
+
       // Left side = movement joystick
       if (x < centerX && this.touchState.moveTouchId === null) {
         this.touchState.moveTouchId = touch.identifier;
@@ -166,6 +197,19 @@ export class InputManager {
         this.inputState.isFiring = true;
       }
     }
+  }
+
+  /**
+   * Check if a point is inside a button area.
+   */
+  private isPointInButton(px: number, py: number, buttonCenterX: number, buttonCenterY: number, size: number): boolean {
+    const halfSize = size / 2;
+    return (
+      px >= buttonCenterX - halfSize &&
+      px <= buttonCenterX + halfSize &&
+      py >= buttonCenterY - halfSize &&
+      py <= buttonCenterY + halfSize
+    );
   }
 
   private onTouchMove(e: TouchEvent): void {
