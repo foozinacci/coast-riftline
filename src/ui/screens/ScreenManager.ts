@@ -16,6 +16,7 @@ import { QuickPlaySetup } from './QuickPlaySetup';
 import { PostMatchScreen } from './PostMatchScreen';
 import { LobbyScreen } from './LobbyScreen';
 import { CustomizeMenu } from './CustomizeMenu';
+import { ClassSelectScreen } from './ClassSelectScreen';
 
 /**
  * Callbacks for game integration.
@@ -69,6 +70,7 @@ export class ScreenManager {
         this.screens.set(AppState.POST_MATCH, this.postMatchScreen);
         this.screens.set(AppState.LOBBY, this.lobbyScreen);
         this.screens.set(AppState.CUSTOMIZE_MENU, new CustomizeMenu());
+        this.screens.set(AppState.CLASS_SELECT, new ClassSelectScreen());
     }
 
     /**

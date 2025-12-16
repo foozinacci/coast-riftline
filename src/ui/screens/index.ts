@@ -11,5 +11,6 @@ export { QuickPlaySetup } from './QuickPlaySetup';
 export { PostMatchScreen } from './PostMatchScreen';
 export { LobbyScreen } from './LobbyScreen';
 export { CustomizeMenu } from './CustomizeMenu';
+export { ClassSelectScreen } from './ClassSelectScreen';
 export { ScreenManager } from './ScreenManager';
 export type { GameCallbacks } from './ScreenManager';
