@@ -378,7 +378,8 @@ export class Renderer {
     });
 
     for (const player of sortedPlayers) {
-      if (!player.isAlive) continue;
+      // Skip dead non-local players, but always render local player
+      if (!player.isAlive && player.id !== localPlayerId) continue;
 
       const team = teams.get(player.teamId);
       const teamIndex = Array.from(teams.keys()).indexOf(player.teamId);
