@@ -521,6 +521,46 @@ export class Renderer {
 
       if (y > 200) break; // Limit display
     }
+
+    // Render zoom controls (top right)
+    this.renderZoomControls(width);
+  }
+
+  private renderZoomControls(width: number): void {
+    const buttonSize = 44;
+    const buttonMargin = 15;
+    const buttonY = 60;
+
+    // Zoom out button (-)
+    const zoomOutX = width - buttonMargin - buttonSize * 2 - 10;
+    this.ctx.fillStyle = 'rgba(26, 26, 37, 0.8)';
+    this.ctx.fillRect(zoomOutX, buttonY, buttonSize, buttonSize);
+    this.ctx.strokeStyle = '#333344';
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(zoomOutX, buttonY, buttonSize, buttonSize);
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = 'bold 24px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText('-', zoomOutX + buttonSize / 2, buttonY + buttonSize / 2);
+
+    // Zoom in button (+)
+    const zoomInX = width - buttonMargin - buttonSize;
+    this.ctx.fillStyle = 'rgba(26, 26, 37, 0.8)';
+    this.ctx.fillRect(zoomInX, buttonY, buttonSize, buttonSize);
+    this.ctx.strokeStyle = '#333344';
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(zoomInX, buttonY, buttonSize, buttonSize);
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.fillText('+', zoomInX + buttonSize / 2, buttonY + buttonSize / 2);
+
+    // Zoom level indicator
+    const zoomLevel = Math.round(this.camera.getZoom() * 100);
+    this.ctx.fillStyle = COLORS.uiTextDim;
+    this.ctx.font = '10px sans-serif';
+    this.ctx.fillText(`${zoomLevel}%`, width - buttonMargin - buttonSize - 5, buttonY + buttonSize + 12);
   }
 
   private renderTouchControls(): void {

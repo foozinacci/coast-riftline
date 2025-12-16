@@ -38,6 +38,10 @@ export class Camera {
     this.setZoom(this.targetZoom + delta);
   }
 
+  getZoom(): number {
+    return this.zoom;
+  }
+
   // Get the logical canvas dimensions (CSS pixels, not device pixels)
   private getCanvasDimensions(): { width: number; height: number } {
     const dpr = window.devicePixelRatio || 1;
