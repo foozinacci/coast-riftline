@@ -29,6 +29,7 @@ export class InputManager {
       isReloading: false,
       interact: false,
       confirm: false,
+      back: false,
       zoom: 1,
     };
     this.touchState = {
@@ -82,6 +83,9 @@ export class InputManager {
     }
     if (e.code === 'KeyE' || e.code === 'KeyF') {
       this.inputState.interact = true;
+    }
+    if (e.code === 'Escape') {
+      this.inputState.back = true;
     }
   }
 
@@ -295,6 +299,14 @@ export class InputManager {
   consumeConfirm(): boolean {
     if (this.inputState.confirm) {
       this.inputState.confirm = false;
+      return true;
+    }
+    return false;
+  }
+
+  consumeBack(): boolean {
+    if (this.inputState.back) {
+      this.inputState.back = false;
       return true;
     }
     return false;

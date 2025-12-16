@@ -18,7 +18,72 @@ export interface Circle {
   radius: number;
 }
 
-// Game state phases
+// ============================================================================
+// APP STATE MACHINE (Top-Level FSM per Specification)
+// ============================================================================
+
+/**
+ * High-level application states following the navigation specification.
+ * Each state has explicit IN, OUT, and BACK behavior.
+ */
+export enum AppState {
+  // Core boot/loading states
+  BOOT = 'boot',
+  SPLASH = 'splash',
+  TITLE = 'title',
+
+  // Main menu and navigation
+  MAIN_MENU = 'main_menu',
+  PLAY_MENU = 'play_menu',
+  QUICK_PLAY_SETUP = 'quick_play_setup',
+  CUSTOM_GAME_BROWSER = 'custom_game_browser',
+  CREATE_CUSTOM_GAME = 'create_custom_game',
+  PRIVATE_MATCH = 'private_match',
+
+  // Customization & Settings
+  CUSTOMIZE_MENU = 'customize_menu',
+  CLASS_SELECT = 'class_select',
+  SETTINGS_ROOT = 'settings_root',
+  CONTROLS_MENU = 'controls_menu',
+  CONTROLLER_BINDINGS = 'controller_bindings',
+  MKB_BINDINGS = 'mkb_bindings',
+
+  // Lobby & Matchmaking
+  LOBBY = 'lobby',
+  MATCHMAKING = 'matchmaking',
+  CONNECTING = 'connecting',
+
+  // In-Match states
+  MATCH_LOADING = 'match_loading',
+  IN_MATCH = 'in_match',
+  PAUSE_MENU = 'pause_menu',
+  DEATH_OVERLAY = 'death_overlay',
+
+  // Post-Match
+  POST_MATCH = 'post_match',
+
+  // Connection states
+  DISCONNECT_RECONNECT = 'disconnect_reconnect',
+
+  // Exit states
+  EXIT_CONFIRM = 'exit_confirm',
+}
+
+/**
+ * Modal types that can overlay any screen.
+ * Modals trap focus and must have explicit Confirm/Cancel actions.
+ */
+export enum ModalType {
+  NONE = 'none',
+  ERROR = 'error',
+  EXIT_MATCH_CONFIRM = 'exit_match_confirm',
+  LEAVE_LOBBY = 'leave_lobby',
+  DISBAND_LOBBY = 'disband_lobby',
+  DISCARD_CHANGES = 'discard_changes',
+  FORFEIT_MATCH = 'forfeit_match',
+}
+
+// Game state phases (in-match only)
 export enum GamePhase {
   LOBBY = 'lobby',
   CLASS_SELECT = 'class_select',
@@ -99,13 +164,13 @@ export interface WeaponConfig {
   name: string;
   type: WeaponType;
   damage: number;
-  fireRate: number; // shots per second
+  fireRate: number;
   magazineSize: number;
-  reloadTime: number; // ms
+  reloadTime: number;
   range: number;
-  spread: number; // accuracy cone in degrees
+  spread: number;
   projectileSpeed: number;
-  burstCount?: number; // for burst weapons
+  burstCount?: number;
   inventorySize: { width: number; height: number };
 }
 
@@ -114,7 +179,7 @@ export interface BackpackConfig {
   tier: BackpackTier;
   gridWidth: number;
   gridHeight: number;
-  moveSpeedPenalty: number; // percentage reduction
+  moveSpeedPenalty: number;
 }
 
 // Player loadout
@@ -127,12 +192,11 @@ export interface Loadout {
 // Squad data
 export interface Squad {
   id: string;
-  players: string[]; // player IDs
+  players: string[];
   color: string;
   spawnSite: string | null;
   relicsDelivered: number;
   isEliminated: boolean;
-  /** Remaining wipe window (ms). Null when not wiping. */
   wipeTimerRemainingMs: number | null;
 }
 
@@ -143,8 +207,8 @@ export interface InputState {
   isFiring: boolean;
   isReloading: boolean;
   interact: boolean;
-  /** Generic "confirm" action (tap/click). Used for lobby/game-over flows. */
   confirm: boolean;
+  back: boolean;
   zoom: number;
 }
 
@@ -168,8 +232,8 @@ export interface CameraState {
 
 // Proximity signal for awareness system
 export interface ProximitySignal {
-  direction: number; // angle in radians
-  strength: number; // 0-1
+  direction: number;
+  strength: number;
   type: 'enemy' | 'loot' | 'relic' | 'danger';
   distance: number;
 }
@@ -198,8 +262,44 @@ export interface GameConfig {
 
 export interface RiftlinePhaseConfig {
   phase: RiftlinePhase;
-  duration: number; // ms
+  duration: number;
   damagePerSecond: number;
-  shrinkRate: number; // units per second
-  respawnEfficiency: number; // multiplier
+  shrinkRate: number;
+  respawnEfficiency: number;
+}
+
+// ============================================================================
+// NAVIGATION SYSTEM (Per Specification K & L)
+// ============================================================================
+
+/**
+ * Navigation stack entry - every screen push records its caller.
+ */
+export interface NavigationEntry {
+  state: AppState;
+  caller: AppState | null;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Error state for error handling (per spec A5).
+ */
+export interface ErrorState {
+  message: string;
+  code?: string;
+  actions: {
+    tryAgain?: () => void;
+    back?: () => void;
+    copyError?: () => void;
+    reportError?: () => void;
+  };
+}
+
+/**
+ * Focus state for controller navigation (per spec A2).
+ */
+export interface FocusState {
+  currentFocusId: string | null;
+  focusableElements: string[];
+  focusHistory: Map<AppState, string>;
 }
