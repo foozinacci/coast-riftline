@@ -2,7 +2,7 @@
 
 A fast-paced, top-down squad-based battle royale built for mobile and desktop.
 
-## Play Now
+## Play Now!
 
 **[Play RIFTLINE in your browser](https://coast-riftline.vercel.app)** - No download required!
 
