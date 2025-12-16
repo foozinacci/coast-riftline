@@ -126,6 +126,20 @@ export interface RiftlineRing {
   damage: number; // damage per second when outside
 }
 
+export type StructureType = 'wall' | 'crate' | 'pillar' | 'building' | 'barrier';
+
+export interface Structure {
+  id: string;
+  type: StructureType;
+  position: Vector2;
+  width: number;
+  height: number;
+  rotation: number; // radians
+  health: number;
+  maxHealth: number;
+  isDestructible: boolean;
+}
+
 export interface MatchState {
   id: string;
   phase: MatchPhase;
@@ -134,10 +148,13 @@ export interface MatchState {
   players: Map<string, Player>;
   relics: Map<string, Relic>;
   deliverySites: Map<string, DeliverySite>;
+  structures: Map<string, Structure>;
   rings: RiftlineRing[];
   vaultPosition: Vector2 | null;
   vaultRadius: number;
 }
+
+export type GameScreen = 'landing' | 'lobby' | 'match' | 'results';
 
 export interface InputState {
   moveDirection: Vector2; // normalized or zero

@@ -1,4 +1,4 @@
-import type { Vector2, Player, Team, Relic, DeliverySite, RiftlineRing, MatchPhase } from '../types';
+import type { Vector2, Player, Team, Relic, DeliverySite, RiftlineRing, MatchPhase, Structure } from '../types';
 import { ROLE_STATS } from '../types';
 import { Camera } from './Camera';
 import { InputManager } from './InputManager';
@@ -22,6 +22,13 @@ const COLORS = {
   healthBarBg: '#1a1a25',
   uiText: '#ffffff',
   uiTextDim: '#888899',
+  // Structure colors
+  structureWall: '#4a4a5a',
+  structureCrate: '#8b6914',
+  structurePillar: '#5a5a6a',
+  structureBuilding: '#3a3a4a',
+  structureBarrier: '#6a4a4a',
+  structureBorder: '#666677',
 };
 
 const TEAM_COLORS = [
@@ -77,6 +84,7 @@ export class Renderer {
     teams: Map<string, Team>,
     relics: Map<string, Relic>,
     sites: Map<string, DeliverySite>,
+    structures: Map<string, Structure>,
     rings: RiftlineRing[],
     vaultPosition: Vector2 | null,
     vaultRadius: number,
@@ -100,6 +108,7 @@ export class Renderer {
     if (vaultPosition && phase === 'convergence') {
       this.renderVault(vaultPosition, vaultRadius);
     }
+    this.renderStructures(structures);
     this.renderRelics(relics);
     this.renderPlayers(players, teams, localPlayerId);
 
@@ -250,6 +259,82 @@ export class Renderer {
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
     this.ctx.fillText('VAULT', position.x, position.y);
+  }
+
+  private renderStructures(structures: Map<string, Structure>): void {
+    for (const structure of structures.values()) {
+      this.ctx.save();
+
+      // Move to structure position and rotate
+      this.ctx.translate(structure.position.x, structure.position.y);
+      this.ctx.rotate(structure.rotation);
+
+      // Get color based on type
+      let fillColor: string;
+      let strokeColor = COLORS.structureBorder;
+
+      switch (structure.type) {
+        case 'wall':
+          fillColor = COLORS.structureWall;
+          break;
+        case 'crate':
+          fillColor = COLORS.structureCrate;
+          break;
+        case 'pillar':
+          fillColor = COLORS.structurePillar;
+          break;
+        case 'building':
+          fillColor = COLORS.structureBuilding;
+          break;
+        case 'barrier':
+          fillColor = COLORS.structureBarrier;
+          break;
+        default:
+          fillColor = '#444455';
+      }
+
+      // Draw structure body
+      this.ctx.fillStyle = fillColor;
+      this.ctx.fillRect(-structure.width / 2, -structure.height / 2, structure.width, structure.height);
+
+      // Draw border
+      this.ctx.strokeStyle = strokeColor;
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(-structure.width / 2, -structure.height / 2, structure.width, structure.height);
+
+      // Draw damage indicator if destructible and damaged
+      if (structure.isDestructible && structure.health < structure.maxHealth) {
+        const healthPercent = structure.health / structure.maxHealth;
+
+        // Cracks/damage effect
+        this.ctx.strokeStyle = `rgba(0, 0, 0, ${0.5 - healthPercent * 0.3})`;
+        this.ctx.lineWidth = 1;
+
+        // Draw some crack lines
+        const cracks = Math.floor((1 - healthPercent) * 5);
+        for (let i = 0; i < cracks; i++) {
+          const startX = (Math.random() - 0.5) * structure.width * 0.8;
+          const startY = (Math.random() - 0.5) * structure.height * 0.8;
+          this.ctx.beginPath();
+          this.ctx.moveTo(startX, startY);
+          this.ctx.lineTo(startX + (Math.random() - 0.5) * 20, startY + (Math.random() - 0.5) * 20);
+          this.ctx.stroke();
+        }
+      }
+
+      // Special rendering for pillars (circular)
+      if (structure.type === 'pillar') {
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, structure.width / 2, 0, Math.PI * 2);
+        this.ctx.fillStyle = fillColor;
+        this.ctx.fill();
+        this.ctx.strokeStyle = strokeColor;
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+      }
+
+      this.ctx.restore();
+    }
   }
 
   private renderRelics(relics: Map<string, Relic>): void {

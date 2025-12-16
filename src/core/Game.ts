@@ -11,6 +11,9 @@ import type {
   Weapon,
   GameConfig,
   InputState,
+  Structure,
+  StructureType,
+  GameScreen,
 } from '../types';
 import { DEFAULT_CONFIG, ROLE_STATS } from '../types';
 import { Camera } from './Camera';
@@ -33,6 +36,9 @@ import {
   pointInCircle,
   circlesOverlap,
   clamp,
+  circleRectCollision,
+  getCircleRectPushVector,
+  pointInRotatedRect,
 } from '../utils/math';
 
 export class Game {
@@ -46,9 +52,11 @@ export class Game {
   private matchState: MatchState;
   private projectiles: Projectile[] = [];
   private orbs: Orb[] = [];
+  private currentScreen: GameScreen = 'landing';
 
   // Local player
   private localPlayerId: string | null = null;
+  private selectedRole: Role = 'skirmisher';
 
   // Timing
   private lastTime: number = 0;
@@ -95,6 +103,46 @@ export class Game {
     );
 
     this.matchState = this.createEmptyMatchState();
+
+    // Setup click handler for landing page
+    this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
+  }
+
+  private handleCanvasClick(e: MouseEvent): void {
+    if (this.currentScreen !== 'landing') return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
+    const width = rect.width;
+    const height = rect.height;
+
+    // Check role button clicks
+    const roles: Role[] = ['vanguard', 'skirmisher', 'sentinel', 'catalyst'];
+    const buttonWidth = 200;
+    const buttonHeight = 60;
+    const buttonSpacing = 20;
+    const totalWidth = (buttonWidth + buttonSpacing) * roles.length - buttonSpacing;
+    const startX = (width - totalWidth) / 2;
+    const buttonY = height * 0.5;
+
+    roles.forEach((role, index) => {
+      const bx = startX + index * (buttonWidth + buttonSpacing);
+      if (x >= bx && x <= bx + buttonWidth && y >= buttonY && y <= buttonY + buttonHeight) {
+        this.selectedRole = role;
+      }
+    });
+
+    // Check play button click
+    const playButtonWidth = 300;
+    const playButtonHeight = 60;
+    const playX = (width - playButtonWidth) / 2;
+    const playY = height * 0.75;
+
+    if (x >= playX && x <= playX + playButtonWidth && y >= playY && y <= playY + playButtonHeight) {
+      this.initTestMatch();
+    }
   }
 
   private createEmptyMatchState(): MatchState {
@@ -106,20 +154,40 @@ export class Game {
       players: new Map(),
       relics: new Map(),
       deliverySites: new Map(),
+      structures: new Map(),
       rings: [],
       vaultPosition: null,
       vaultRadius: 150,
     };
   }
 
+  // Screen management
+  getCurrentScreen(): GameScreen {
+    return this.currentScreen;
+  }
+
+  setScreen(screen: GameScreen): void {
+    this.currentScreen = screen;
+  }
+
+  setSelectedRole(role: Role): void {
+    this.selectedRole = role;
+  }
+
+  getSelectedRole(): Role {
+    return this.selectedRole;
+  }
+
   // Initialize a test match for single-player development
   initTestMatch(): void {
     const ms = this.matchState;
     ms.phase = 'open';
+    this.currentScreen = 'match';
 
     // Create one team with one player (local)
     const teamId = 'team_local';
     const playerId = 'player_local';
+    const role = this.selectedRole;
 
     const team: Team = {
       id: teamId,
@@ -136,12 +204,12 @@ export class Game {
       id: playerId,
       name: 'Player',
       teamId,
-      role: 'skirmisher',
+      role,
       position: vec2(this.config.mapWidth / 2, this.config.mapHeight / 2),
       velocity: vec2(),
-      rotation: 0,
-      health: ROLE_STATS.skirmisher.maxHealth,
-      shield: ROLE_STATS.skirmisher.maxShield,
+      rotation: -Math.PI / 2, // Face up initially
+      health: ROLE_STATS[role].maxHealth,
+      shield: ROLE_STATS[role].maxShield,
       isAlive: true,
       respawnTimer: 0,
       weapon: this.defaultWeapon,
@@ -156,6 +224,9 @@ export class Game {
 
     // Create relics and delivery sites
     this.spawnRelicsAndSites();
+
+    // Create structures for cover
+    this.spawnStructures();
 
     // Create initial riftline ring
     ms.rings.push({
@@ -257,6 +328,95 @@ export class Game {
     }
   }
 
+  private spawnStructures(): void {
+    const ms = this.matchState;
+    const structureTypes: StructureType[] = ['wall', 'crate', 'pillar', 'building', 'barrier'];
+
+    // Create a grid-based layout for cover throughout the map
+    const gridSize = 400; // Distance between structure clusters
+    const margin = 200; // Keep structures away from map edges
+
+    let structureId = 0;
+
+    // Spawn structure clusters in a grid pattern
+    for (let x = margin; x < this.config.mapWidth - margin; x += gridSize) {
+      for (let y = margin; y < this.config.mapHeight - margin; y += gridSize) {
+        // Random offset within the grid cell
+        const offsetX = randomRange(-100, 100);
+        const offsetY = randomRange(-100, 100);
+        const centerX = x + offsetX;
+        const centerY = y + offsetY;
+
+        // Randomly decide what type of structure cluster to place
+        const clusterType = randomInt(0, 4);
+
+        switch (clusterType) {
+          case 0: // L-shaped wall cover
+            this.createStructure(ms, structureId++, 'wall', centerX, centerY, 120, 20, 0);
+            this.createStructure(ms, structureId++, 'wall', centerX + 50, centerY + 50, 80, 20, Math.PI / 2);
+            break;
+          case 1: // Crate cluster
+            this.createStructure(ms, structureId++, 'crate', centerX, centerY, 40, 40, 0);
+            this.createStructure(ms, structureId++, 'crate', centerX + 50, centerY, 40, 40, randomRange(0, Math.PI / 4));
+            this.createStructure(ms, structureId++, 'crate', centerX + 25, centerY + 45, 40, 40, randomRange(0, Math.PI / 4));
+            break;
+          case 2: // Single pillar
+            this.createStructure(ms, structureId++, 'pillar', centerX, centerY, 50, 50, 0);
+            break;
+          case 3: // Small building
+            this.createStructure(ms, structureId++, 'building', centerX, centerY, 100, 80, randomRange(0, Math.PI / 2));
+            break;
+          case 4: // Barrier line
+            this.createStructure(ms, structureId++, 'barrier', centerX, centerY, 150, 15, randomRange(0, Math.PI));
+            break;
+        }
+      }
+    }
+
+    // Add some larger structures near the center for interesting combat
+    const centerX = this.config.mapWidth / 2;
+    const centerY = this.config.mapHeight / 2;
+
+    // Central structure - keep some space around player spawn
+    this.createStructure(ms, structureId++, 'building', centerX + 200, centerY - 200, 120, 100, 0);
+    this.createStructure(ms, structureId++, 'building', centerX - 200, centerY + 200, 120, 100, 0);
+    this.createStructure(ms, structureId++, 'pillar', centerX + 150, centerY + 150, 60, 60, 0);
+    this.createStructure(ms, structureId++, 'pillar', centerX - 150, centerY - 150, 60, 60, 0);
+  }
+
+  private createStructure(
+    ms: MatchState,
+    id: number,
+    type: StructureType,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    rotation: number
+  ): void {
+    const healthMap: Record<StructureType, number> = {
+      wall: 200,
+      crate: 100,
+      pillar: 300,
+      building: 500,
+      barrier: 150,
+    };
+
+    const structure: Structure = {
+      id: `structure_${id}`,
+      type,
+      position: vec2(x, y),
+      width,
+      height,
+      rotation,
+      health: healthMap[type],
+      maxHealth: healthMap[type],
+      isDestructible: type !== 'pillar', // Pillars are indestructible
+    };
+
+    ms.structures.set(structure.id, structure);
+  }
+
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -321,7 +481,13 @@ export class Game {
       player.velocity = vec2Scale(player.velocity, 0.85); // Friction
     }
 
-    player.position = vec2Add(player.position, vec2Scale(player.velocity, deltaTime));
+    // Calculate new position
+    const newPos = vec2Add(player.position, vec2Scale(player.velocity, deltaTime));
+
+    // Check structure collisions
+    this.resolvePlayerStructureCollisions(newPos, stats.hitboxRadius);
+
+    player.position = newPos;
 
     // Clamp to map bounds
     player.position.x = clamp(player.position.x, stats.hitboxRadius, this.config.mapWidth - stats.hitboxRadius);
@@ -342,6 +508,36 @@ export class Game {
     // Firing
     if (input.firing && player.weapon) {
       this.tryFireWeapon(player);
+    }
+  }
+
+  private resolvePlayerStructureCollisions(position: { x: number; y: number }, radius: number): void {
+    for (const structure of this.matchState.structures.values()) {
+      // Special handling for pillars (circular)
+      if (structure.type === 'pillar') {
+        const dist = vec2Distance(position, structure.position);
+        const minDist = radius + structure.width / 2;
+        if (dist < minDist) {
+          const pushDir = vec2Normalize(vec2Sub(position, structure.position));
+          const pushDist = minDist - dist;
+          position.x += pushDir.x * pushDist;
+          position.y += pushDir.y * pushDist;
+        }
+      } else {
+        // Rectangular structures
+        const push = getCircleRectPushVector(
+          position,
+          radius,
+          structure.position,
+          structure.width,
+          structure.height,
+          structure.rotation
+        );
+        if (push) {
+          position.x += push.x;
+          position.y += push.y;
+        }
+      }
     }
   }
 
@@ -376,7 +572,7 @@ export class Game {
     for (const player of this.matchState.players.values()) {
       if (player.id === this.localPlayerId || !player.isAlive) continue;
 
-      // Random movement
+      // Random movement - change direction more often if stuck
       if (Math.random() < 0.02) {
         player.rotation = randomRange(0, Math.PI * 2);
       }
@@ -385,22 +581,39 @@ export class Game {
       const speed = stats.moveSpeed * 0.5; // AI moves slower
 
       player.velocity = vec2FromAngle(player.rotation, speed);
-      player.position = vec2Add(player.position, vec2Scale(player.velocity, deltaTime));
+
+      // Calculate new position
+      const newPos = vec2Add(player.position, vec2Scale(player.velocity, deltaTime));
+
+      // Check structure collisions
+      this.resolvePlayerStructureCollisions(newPos, stats.hitboxRadius);
+
+      player.position = newPos;
 
       // Clamp to map bounds
       player.position.x = clamp(player.position.x, stats.hitboxRadius, this.config.mapWidth - stats.hitboxRadius);
       player.position.y = clamp(player.position.y, stats.hitboxRadius, this.config.mapHeight - stats.hitboxRadius);
 
-      // Randomly fire
-      if (Math.random() < 0.01 && player.weapon) {
-        const projectile = createProjectile(
-          player.id,
-          player.teamId,
-          vec2Add(player.position, vec2FromAngle(player.rotation, stats.hitboxRadius + 5)),
-          vec2FromAngle(player.rotation),
-          player.weapon
-        );
-        this.projectiles.push(projectile);
+      // Look towards local player if in range
+      const localPlayer = this.localPlayerId ? this.matchState.players.get(this.localPlayerId) : null;
+      if (localPlayer && localPlayer.isAlive) {
+        const toPlayer = vec2Sub(localPlayer.position, player.position);
+        const dist = vec2Length(toPlayer);
+        if (dist < 500) { // Detection range
+          player.rotation = vec2Angle(toPlayer);
+
+          // Fire at player if in range
+          if (Math.random() < 0.03 && player.weapon) {
+            const projectile = createProjectile(
+              player.id,
+              player.teamId,
+              vec2Add(player.position, vec2FromAngle(player.rotation, stats.hitboxRadius + 5)),
+              vec2FromAngle(player.rotation),
+              player.weapon
+            );
+            this.projectiles.push(projectile);
+          }
+        }
       }
     }
   }
@@ -417,6 +630,7 @@ export class Game {
       }
 
       // Check collision with players
+      let hitSomething = false;
       for (const player of this.matchState.players.values()) {
         if (!player.isAlive) continue;
         if (player.teamId === projectile.teamId) continue; // No friendly fire
@@ -425,9 +639,50 @@ export class Game {
         if (vec2Distance(projectile.position, player.position) <= stats.hitboxRadius) {
           this.damagePlayer(player, projectile.damage, projectile.ownerId);
           toRemove.push(i);
+          hitSomething = true;
           break;
         }
       }
+
+      if (hitSomething) continue;
+
+      // Check collision with structures
+      for (const structure of this.matchState.structures.values()) {
+        let hit = false;
+
+        if (structure.type === 'pillar') {
+          // Circular collision for pillars
+          if (vec2Distance(projectile.position, structure.position) <= structure.width / 2 + 4) {
+            hit = true;
+          }
+        } else {
+          // Rectangle collision for other structures
+          if (pointInRotatedRect(
+            projectile.position,
+            structure.position,
+            structure.width + 8, // Add projectile radius
+            structure.height + 8,
+            structure.rotation
+          )) {
+            hit = true;
+          }
+        }
+
+        if (hit) {
+          // Damage destructible structures
+          if (structure.isDestructible) {
+            structure.health -= projectile.damage;
+            if (structure.health <= 0) {
+              this.matchState.structures.delete(structure.id);
+            }
+          }
+          toRemove.push(i);
+          hitSomething = true;
+          break;
+        }
+      }
+
+      if (hitSomething) continue;
 
       // Check map bounds
       if (
@@ -652,11 +907,18 @@ export class Game {
   }
 
   private render(): void {
+    // If on landing screen, render landing page instead
+    if (this.currentScreen === 'landing') {
+      this.renderLandingPage();
+      return;
+    }
+
     this.renderer.render(
       this.matchState.players,
       this.matchState.teams,
       this.matchState.relics,
       this.matchState.deliverySites,
+      this.matchState.structures,
       this.matchState.rings,
       this.matchState.vaultPosition,
       this.matchState.vaultRadius,
@@ -669,6 +931,114 @@ export class Game {
 
     // Render orbs
     this.renderOrbs();
+  }
+
+  private renderLandingPage(): void {
+    const ctx = this.canvas.getContext('2d')!;
+    const dpr = window.devicePixelRatio || 1;
+    const width = this.canvas.width / dpr;
+    const height = this.canvas.height / dpr;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+
+    // Background
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw grid lines in background
+    ctx.strokeStyle = '#1a1a25';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < width; x += 50) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < height; y += 50) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // Title
+    ctx.fillStyle = '#00f7ff';
+    ctx.font = 'bold 48px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('RIFTLINE', width / 2, height * 0.2);
+
+    // Subtitle
+    ctx.fillStyle = '#888899';
+    ctx.font = '16px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('Squad Battle Royale', width / 2, height * 0.2 + 40);
+
+    // Role selection
+    const roles: Role[] = ['vanguard', 'skirmisher', 'sentinel', 'catalyst'];
+    const roleDescriptions: Record<Role, string> = {
+      vanguard: 'Tank - High HP, Slow, Large Hitbox',
+      skirmisher: 'Balanced - Medium Stats All Around',
+      sentinel: 'Scout - Low HP, Fast, Small Hitbox',
+      catalyst: 'Support - Medium HP, Medium Speed',
+    };
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('SELECT ROLE', width / 2, height * 0.4);
+
+    const buttonWidth = 200;
+    const buttonHeight = 60;
+    const buttonSpacing = 20;
+    const totalWidth = (buttonWidth + buttonSpacing) * roles.length - buttonSpacing;
+    const startX = (width - totalWidth) / 2;
+
+    roles.forEach((role, index) => {
+      const x = startX + index * (buttonWidth + buttonSpacing);
+      const y = height * 0.5;
+      const isSelected = role === this.selectedRole;
+
+      // Button background
+      ctx.fillStyle = isSelected ? '#00f7ff' : '#1a1a25';
+      ctx.fillRect(x, y, buttonWidth, buttonHeight);
+
+      // Button border
+      ctx.strokeStyle = isSelected ? '#00f7ff' : '#333344';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, buttonWidth, buttonHeight);
+
+      // Role name
+      ctx.fillStyle = isSelected ? '#0a0a0f' : '#ffffff';
+      ctx.font = 'bold 14px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(role.toUpperCase(), x + buttonWidth / 2, y + 20);
+
+      // Role stats
+      const stats = ROLE_STATS[role];
+      ctx.fillStyle = isSelected ? '#0a0a0f' : '#888899';
+      ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(`HP: ${stats.maxHealth} SPD: ${stats.moveSpeed}`, x + buttonWidth / 2, y + 40);
+    });
+
+    // Play button
+    const playButtonWidth = 300;
+    const playButtonHeight = 60;
+    const playX = (width - playButtonWidth) / 2;
+    const playY = height * 0.75;
+
+    ctx.fillStyle = '#00ff88';
+    ctx.fillRect(playX, playY, playButtonWidth, playButtonHeight);
+
+    ctx.fillStyle = '#0a0a0f';
+    ctx.font = 'bold 24px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('START MATCH', width / 2, playY + playButtonHeight / 2 + 8);
+
+    // Instructions
+    ctx.fillStyle = '#666677';
+    ctx.font = '12px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('Click a role to select, then click START MATCH', width / 2, height * 0.9);
+    ctx.fillText('Controls: WASD to move, Mouse to aim & click to shoot', width / 2, height * 0.9 + 20);
   }
 
   private renderProjectiles(): void {
