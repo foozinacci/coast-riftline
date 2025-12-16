@@ -10,7 +10,6 @@ import type {
   Role,
   Weapon,
   GameConfig,
-  InputState,
   Structure,
   StructureType,
   GameScreen,
@@ -19,8 +18,11 @@ import { DEFAULT_CONFIG, ROLE_STATS } from '../types';
 import { Camera } from './Camera';
 import { InputManager } from './InputManager';
 import { Renderer } from './Renderer';
+import { MenuRenderer, type MenuState } from '../ui/MenuRenderer';
 import { Projectile, createProjectile, updateProjectile } from '../entities/Projectile';
 import { Orb, createOrbsFromElimination, isOrbExpired, canCollectOrb } from '../entities/Orb';
+import { lobbyManager, type Shard, type Party } from '../lib/lobby';
+import { continueAsGuest } from '../lib/auth';
 import {
   vec2,
   vec2Add,
@@ -34,9 +36,7 @@ import {
   randomRange,
   randomInt,
   pointInCircle,
-  circlesOverlap,
   clamp,
-  circleRectCollision,
   getCircleRectPushVector,
   pointInRotatedRect,
 } from '../utils/math';
@@ -46,6 +46,7 @@ export class Game {
   private camera: Camera;
   private inputManager: InputManager;
   private renderer: Renderer;
+  private menuRenderer: MenuRenderer;
   private config: GameConfig;
 
   // Game state
@@ -53,6 +54,20 @@ export class Game {
   private projectiles: Projectile[] = [];
   private orbs: Orb[] = [];
   private currentScreen: GameScreen = 'landing';
+
+  // Menu state
+  private menuState: MenuState = {
+    screen: 'landing',
+    selectedRole: 'skirmisher',
+    selectedShard: 'na-east',
+    partyCode: '',
+    isLoading: false,
+    error: null,
+    party: null,
+    queueTime: 0,
+    isGuest: true,
+    username: 'Player',
+  };
 
   // Local player
   private localPlayerId: string | null = null;
@@ -106,14 +121,39 @@ export class Game {
       this.config.mapHeight
     );
 
+    this.menuRenderer = new MenuRenderer(canvas);
+
     this.matchState = this.createEmptyMatchState();
 
-    // Setup click/touch handler for landing page
+    // Setup click/touch handlers
     this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
     this.canvas.addEventListener('touchend', this.handleCanvasTouch.bind(this));
+
+    // Setup lobby callbacks
+    this.setupLobbyCallbacks();
+  }
+
+  private setupLobbyCallbacks(): void {
+    lobbyManager.setOnPartyUpdate((party) => {
+      this.menuState.party = party;
+    });
+
+    lobbyManager.setOnLobbyUpdate((lobby) => {
+      if (lobby?.status === 'starting') {
+        // Match is starting!
+        this.initTestMatch();
+      }
+    });
+
+    lobbyManager.setOnMatchStart(() => {
+      this.initTestMatch();
+    });
   }
 
   private handleCanvasTouch(e: TouchEvent): void {
+    // Prevent default to avoid double-firing with click
+    e.preventDefault();
+
     // Use the first changed touch
     if (e.changedTouches.length === 0) return;
     const touch = e.changedTouches[0];
@@ -122,17 +162,7 @@ export class Game {
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
 
-    // Handle zoom buttons in match screen
-    if (this.currentScreen === 'match') {
-      if (this.handleZoomButtonTap(x, y, rect.width, rect.height)) {
-        return;
-      }
-    }
-
-    // Handle landing page
-    if (this.currentScreen === 'landing') {
-      this.handleLandingPageClick(x, y, rect.width, rect.height);
-    }
+    this.handleInteraction(x, y, rect.width, rect.height);
   }
 
   private handleZoomButtonTap(x: number, y: number, width: number, height: number): boolean {
@@ -167,40 +197,168 @@ export class Game {
   }
 
   private handleCanvasClick(e: MouseEvent): void {
-    if (this.currentScreen !== 'landing') return;
-
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    this.handleLandingPageClick(x, y, rect.width, rect.height);
+    this.handleInteraction(x, y, rect.width, rect.height);
   }
 
-  private handleLandingPageClick(x: number, y: number, width: number, height: number): void {
-    // Check role button clicks
-    const roles: Role[] = ['vanguard', 'skirmisher', 'sentinel', 'catalyst'];
-    const buttonWidth = 200;
-    const buttonHeight = 60;
-    const buttonSpacing = 20;
-    const totalWidth = (buttonWidth + buttonSpacing) * roles.length - buttonSpacing;
-    const startX = (width - totalWidth) / 2;
-    const buttonY = height * 0.5;
-
-    roles.forEach((role, index) => {
-      const bx = startX + index * (buttonWidth + buttonSpacing);
-      if (x >= bx && x <= bx + buttonWidth && y >= buttonY && y <= buttonY + buttonHeight) {
-        this.selectedRole = role;
+  private handleInteraction(x: number, y: number, width: number, height: number): void {
+    // Handle zoom buttons in match screen
+    if (this.currentScreen === 'match') {
+      if (this.handleZoomButtonTap(x, y, width, height)) {
+        return;
       }
-    });
+      return; // Don't process menu clicks during match
+    }
 
-    // Check play button click
-    const playButtonWidth = 300;
-    const playButtonHeight = 60;
-    const playX = (width - playButtonWidth) / 2;
-    const playY = height * 0.75;
+    // Check menu button clicks
+    const buttonId = this.menuRenderer.hitTest(x, y);
+    if (buttonId) {
+      this.handleMenuAction(buttonId);
+    }
+  }
 
-    if (x >= playX && x <= playX + playButtonWidth && y >= playY && y <= playY + playButtonHeight) {
-      this.initTestMatch();
+  private async handleMenuAction(action: string): Promise<void> {
+    console.log('Menu action:', action);
+
+    switch (action) {
+      // Landing screen
+      case 'guest':
+        this.menuState.isLoading = true;
+        try {
+          await continueAsGuest();
+          this.menuState.isGuest = true;
+          this.menuState.username = 'Guest_' + Math.random().toString(36).substring(2, 6).toUpperCase();
+          this.currentScreen = 'menu';
+          this.menuState.screen = 'menu';
+        } catch (err) {
+          this.menuState.error = 'Failed to start. Please try again.';
+          setTimeout(() => { this.menuState.error = null; }, 3000);
+        }
+        this.menuState.isLoading = false;
+        break;
+
+      case 'signin':
+        // For now, just go to menu (would open auth modal)
+        this.currentScreen = 'menu';
+        this.menuState.screen = 'menu';
+        break;
+
+      // Main menu
+      case 'play':
+        this.currentScreen = 'shard-select';
+        this.menuState.screen = 'shard-select';
+        break;
+
+      case 'join-party':
+        // Would open party code input modal
+        const code = prompt('Enter party code:');
+        if (code) {
+          this.menuState.isLoading = true;
+          const party = await lobbyManager.joinPartyByCode(code);
+          if (party) {
+            this.menuState.party = party;
+            this.currentScreen = 'lobby';
+            this.menuState.screen = 'lobby';
+          } else {
+            this.menuState.error = 'Party not found';
+            setTimeout(() => { this.menuState.error = null; }, 3000);
+          }
+          this.menuState.isLoading = false;
+        }
+        break;
+
+      case 'practice':
+        // Start practice match immediately
+        this.initTestMatch();
+        break;
+
+      case 'settings':
+        // Would open settings modal
+        break;
+
+      // Shard selection
+      case 'back':
+        if (this.currentScreen === 'shard-select') {
+          this.currentScreen = 'menu';
+          this.menuState.screen = 'menu';
+        } else if (this.currentScreen === 'lobby') {
+          lobbyManager.leaveParty();
+          this.menuState.party = null;
+          this.currentScreen = 'shard-select';
+          this.menuState.screen = 'shard-select';
+        }
+        break;
+
+      case 'continue-shard':
+        // Create/join party and go to lobby
+        this.menuState.isLoading = true;
+        try {
+          const party = await lobbyManager.createParty();
+          this.menuState.party = party;
+          this.currentScreen = 'lobby';
+          this.menuState.screen = 'lobby';
+        } catch (err) {
+          console.error('Failed to create party:', err);
+        }
+        this.menuState.isLoading = false;
+        break;
+
+      // Lobby
+      case 'find-match':
+        // Check if all ready or set self ready
+        const currentParty = this.menuState.party;
+        if (currentParty?.members?.every(m => m.is_ready)) {
+          // All ready, start queue
+          this.menuState.isLoading = true;
+          const lobby = await lobbyManager.joinQueue(this.menuState.selectedShard);
+          if (lobby) {
+            this.currentScreen = 'queue';
+            this.menuState.screen = 'queue';
+            this.menuState.queueTime = 0;
+          }
+          this.menuState.isLoading = false;
+        } else {
+          // Toggle ready
+          await lobbyManager.setReady(true);
+          // For single player, just start the match
+          if (!currentParty || (currentParty.members?.length || 0) <= 1) {
+            this.initTestMatch();
+          }
+        }
+        break;
+
+      case 'invite':
+        // Copy party code to clipboard
+        if (this.menuState.party?.code) {
+          navigator.clipboard?.writeText(this.menuState.party.code);
+          this.menuState.error = 'Party code copied!';
+          setTimeout(() => { this.menuState.error = null; }, 2000);
+        }
+        break;
+
+      // Queue
+      case 'cancel-queue':
+        await lobbyManager.leaveQueue();
+        this.currentScreen = 'lobby';
+        this.menuState.screen = 'lobby';
+        break;
+
+      default:
+        // Handle shard selection
+        if (action.startsWith('shard-')) {
+          this.menuState.selectedShard = action.replace('shard-', '') as Shard;
+        }
+        // Handle role selection
+        if (action.startsWith('role-')) {
+          const role = action.replace('role-', '') as Role;
+          this.menuState.selectedRole = role;
+          this.selectedRole = role;
+          await lobbyManager.setRole(role);
+        }
+        break;
     }
   }
 
@@ -533,6 +691,22 @@ export class Game {
   }
 
   private update(deltaTime: number): void {
+    // Update queue timer when in queue
+    if (this.currentScreen === 'queue') {
+      this.menuState.queueTime += deltaTime;
+
+      // Simulate finding a match after 3-8 seconds (for demo/testing)
+      if (this.menuState.queueTime > 3 + Math.random() * 5) {
+        this.initTestMatch();
+      }
+      return;
+    }
+
+    // Only run game logic during match
+    if (this.currentScreen !== 'match') {
+      return;
+    }
+
     this.matchState.timeElapsed += deltaTime;
 
     this.updateLocalPlayer(deltaTime);
@@ -998,9 +1172,10 @@ export class Game {
   }
 
   private render(): void {
-    // If on landing screen, render landing page instead
-    if (this.currentScreen === 'landing') {
-      this.renderLandingPage();
+    // If on a menu screen, use MenuRenderer
+    if (this.currentScreen !== 'match' && this.currentScreen !== 'results') {
+      const deltaTime = 1 / 60; // Approximate
+      this.menuRenderer.render(this.menuState, deltaTime);
       return;
     }
 
