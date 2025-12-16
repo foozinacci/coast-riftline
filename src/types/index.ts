@@ -154,7 +154,7 @@ export interface MatchState {
   vaultRadius: number;
 }
 
-export type GameScreen = 'landing' | 'lobby' | 'match' | 'results';
+export type GameScreen = 'landing' | 'menu' | 'shard-select' | 'lobby' | 'queue' | 'match' | 'results';
 
 export interface InputState {
   moveDirection: Vector2; // normalized or zero
