@@ -76,7 +76,9 @@ export class InputManager {
       this.touches.set(touch.identifier, touchState);
 
       // Determine if this is a move or aim touch
-      if (pos.x < this.canvas.width * this.moveRegionWidth) {
+      const dpr = window.devicePixelRatio || 1;
+      const logicalWidth = this.canvas.width / dpr;
+      if (pos.x < logicalWidth * this.moveRegionWidth) {
         if (this.moveTouch === null) {
           this.moveTouch = touch.identifier;
           this.moveStickCenter = pos;
@@ -155,9 +157,13 @@ export class InputManager {
 
   private getTouchPosition(touch: Touch): Vector2 {
     const rect = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    // Use logical CSS dimensions, not raw canvas dimensions
+    const logicalWidth = this.canvas.width / dpr;
+    const logicalHeight = this.canvas.height / dpr;
     return {
-      x: (touch.clientX - rect.left) * (this.canvas.width / rect.width),
-      y: (touch.clientY - rect.top) * (this.canvas.height / rect.height),
+      x: (touch.clientX - rect.left) * (logicalWidth / rect.width),
+      y: (touch.clientY - rect.top) * (logicalHeight / rect.height),
     };
   }
 

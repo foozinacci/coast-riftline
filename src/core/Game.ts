@@ -58,6 +58,10 @@ export class Game {
   private localPlayerId: string | null = null;
   private selectedRole: Role = 'skirmisher';
 
+  // Zoom control
+  private lastTapTime: number = 0;
+  private readonly DOUBLE_TAP_THRESHOLD = 300;
+
   // Timing
   private lastTime: number = 0;
   private running: boolean = false;
@@ -104,20 +108,75 @@ export class Game {
 
     this.matchState = this.createEmptyMatchState();
 
-    // Setup click handler for landing page
+    // Setup click/touch handler for landing page
     this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
+    this.canvas.addEventListener('touchend', this.handleCanvasTouch.bind(this));
+  }
+
+  private handleCanvasTouch(e: TouchEvent): void {
+    // Use the first changed touch
+    if (e.changedTouches.length === 0) return;
+    const touch = e.changedTouches[0];
+
+    const rect = this.canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    // Handle zoom buttons in match screen
+    if (this.currentScreen === 'match') {
+      if (this.handleZoomButtonTap(x, y, rect.width, rect.height)) {
+        return;
+      }
+    }
+
+    // Handle landing page
+    if (this.currentScreen === 'landing') {
+      this.handleLandingPageClick(x, y, rect.width, rect.height);
+    }
+  }
+
+  private handleZoomButtonTap(x: number, y: number, width: number, height: number): boolean {
+    const buttonSize = 44;
+    const buttonMargin = 15;
+    const buttonY = 60;
+
+    // Zoom in button (+)
+    const zoomInX = width - buttonMargin - buttonSize;
+    if (x >= zoomInX && x <= zoomInX + buttonSize && y >= buttonY && y <= buttonY + buttonSize) {
+      this.camera.adjustZoom(0.2);
+      return true;
+    }
+
+    // Zoom out button (-)
+    const zoomOutX = width - buttonMargin - buttonSize * 2 - 10;
+    if (x >= zoomOutX && x <= zoomOutX + buttonSize && y >= buttonY && y <= buttonY + buttonSize) {
+      this.camera.adjustZoom(-0.2);
+      return true;
+    }
+
+    // Double tap to reset zoom
+    const now = performance.now();
+    if (now - this.lastTapTime < this.DOUBLE_TAP_THRESHOLD) {
+      this.camera.setZoom(1.0);
+      this.lastTapTime = 0;
+      return true;
+    }
+    this.lastTapTime = now;
+
+    return false;
   }
 
   private handleCanvasClick(e: MouseEvent): void {
     if (this.currentScreen !== 'landing') return;
 
     const rect = this.canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const x = (e.clientX - rect.left);
-    const y = (e.clientY - rect.top);
-    const width = rect.width;
-    const height = rect.height;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
+    this.handleLandingPageClick(x, y, rect.width, rect.height);
+  }
+
+  private handleLandingPageClick(x: number, y: number, width: number, height: number): void {
     // Check role button clicks
     const roles: Role[] = ['vanguard', 'skirmisher', 'sentinel', 'catalyst'];
     const buttonWidth = 200;
@@ -247,8 +306,11 @@ export class Game {
     // Create relics and delivery sites
     this.spawnRelicsAndSites();
 
-    // Create structures for cover
-    this.spawnStructures();
+    // Create structures for cover (avoid player spawn area)
+    this.spawnStructures(spawnX, spawnY);
+
+    // Make sure player isn't stuck inside a structure
+    this.resolvePlayerStructureCollisions(player.position, roleStats.hitboxRadius);
 
     // Set camera to follow player immediately
     this.camera.follow(player.position);
@@ -351,9 +413,9 @@ export class Game {
     }
   }
 
-  private spawnStructures(): void {
+  private spawnStructures(playerSpawnX: number, playerSpawnY: number): void {
     const ms = this.matchState;
-    const structureTypes: StructureType[] = ['wall', 'crate', 'pillar', 'building', 'barrier'];
+    const spawnSafeRadius = 150; // Keep structures away from player spawn
 
     // Create a grid-based layout for cover throughout the map
     const gridSize = 400; // Distance between structure clusters
@@ -369,6 +431,12 @@ export class Game {
         const offsetY = randomRange(-100, 100);
         const centerX = x + offsetX;
         const centerY = y + offsetY;
+
+        // Skip if too close to player spawn
+        const distToSpawn = Math.sqrt(
+          Math.pow(centerX - playerSpawnX, 2) + Math.pow(centerY - playerSpawnY, 2)
+        );
+        if (distToSpawn < spawnSafeRadius) continue;
 
         // Randomly decide what type of structure cluster to place
         const clusterType = randomInt(0, 4);
