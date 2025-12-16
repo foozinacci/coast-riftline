@@ -418,6 +418,76 @@ export class HUD {
       'center',
       'top'
     );
+
+    // Mobile zoom buttons (per spec A6)
+    this.renderZoomButtons(renderer, screen);
+  }
+
+  /**
+   * Render zoom +/- buttons for mobile (per spec A6).
+   * Pinch-to-zoom is disabled by default; these buttons provide explicit zoom control.
+   */
+  private renderZoomButtons(
+    renderer: Renderer,
+    screen: { x: number; y: number }
+  ): void {
+    const buttonSize = 40;
+    const buttonSpacing = 10;
+    const buttonX = screen.x - 60;
+    const buttonY = screen.y / 2;
+
+    // Zoom In button (+)
+    const zoomInY = buttonY - buttonSize - buttonSpacing;
+    renderer.drawScreenRect(
+      buttonX - buttonSize / 2,
+      zoomInY - buttonSize / 2,
+      buttonSize,
+      buttonSize,
+      'rgba(60, 80, 100, 0.6)',
+      'rgba(100, 150, 200, 0.8)',
+      2
+    );
+    renderer.drawScreenText(
+      '+',
+      buttonX,
+      zoomInY,
+      'rgba(200, 220, 255, 0.9)',
+      24,
+      'center',
+      'middle'
+    );
+
+    // Zoom Out button (-)
+    const zoomOutY = buttonY + buttonSpacing;
+    renderer.drawScreenRect(
+      buttonX - buttonSize / 2,
+      zoomOutY - buttonSize / 2,
+      buttonSize,
+      buttonSize,
+      'rgba(60, 80, 100, 0.6)',
+      'rgba(100, 150, 200, 0.8)',
+      2
+    );
+    renderer.drawScreenText(
+      '−',
+      buttonX,
+      zoomOutY,
+      'rgba(200, 220, 255, 0.9)',
+      24,
+      'center',
+      'middle'
+    );
+
+    // Label
+    renderer.drawScreenText(
+      'ZOOM',
+      buttonX,
+      buttonY + buttonSize + buttonSpacing + 5,
+      colorWithAlpha('#ffffff', 0.3),
+      10,
+      'center',
+      'top'
+    );
   }
 
   renderGameOver(

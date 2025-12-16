@@ -3,13 +3,27 @@
 
 import { Renderer } from '../../core/renderer';
 import { getNavigationManager, NavigationManager, NavigationEvent } from '../../core/navigation';
-import { AppState, ModalType } from '../../core/types';
+import { AppState, ModalType, MatchStats } from '../../core/types';
 import { InputManager } from '../../core/input';
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { TitleScreen } from './TitleScreen';
 import { MainMenu } from './MainMenu';
 import { PlayMenu } from './PlayMenu';
 import { PauseMenu } from './PauseMenu';
+import { SettingsRoot } from './SettingsRoot';
+import { ControlsMenu } from './ControlsMenu';
+import { QuickPlaySetup } from './QuickPlaySetup';
+import { PostMatchScreen } from './PostMatchScreen';
+import { LobbyScreen } from './LobbyScreen';
+import { CustomizeMenu } from './CustomizeMenu';
+
+/**
+ * Callbacks for game integration.
+ */
+export interface GameCallbacks {
+    startGame: () => void;
+    resetGame: () => void;
+}
 
 /**
  * ScreenManager - Central UI orchestrator.
@@ -21,10 +35,20 @@ export class ScreenManager {
     private currentScreen: BaseScreen | null = null;
     private isMobile: boolean;
 
+    // Typed screen references for setting callbacks
+    private quickPlaySetup: QuickPlaySetup;
+    private postMatchScreen: PostMatchScreen;
+    private lobbyScreen: LobbyScreen;
+
     constructor(isMobile: boolean) {
         this.isMobile = isMobile;
         this.navigation = getNavigationManager();
         this.screens = new Map();
+
+        // Create screen instances
+        this.quickPlaySetup = new QuickPlaySetup();
+        this.postMatchScreen = new PostMatchScreen();
+        this.lobbyScreen = new LobbyScreen();
 
         // Initialize all screens
         this.initializeScreens();
@@ -39,12 +63,28 @@ export class ScreenManager {
         this.screens.set(AppState.MAIN_MENU, new MainMenu());
         this.screens.set(AppState.PLAY_MENU, new PlayMenu());
         this.screens.set(AppState.PAUSE_MENU, new PauseMenu());
+        this.screens.set(AppState.SETTINGS_ROOT, new SettingsRoot());
+        this.screens.set(AppState.CONTROLS_MENU, new ControlsMenu());
+        this.screens.set(AppState.QUICK_PLAY_SETUP, this.quickPlaySetup);
+        this.screens.set(AppState.POST_MATCH, this.postMatchScreen);
+        this.screens.set(AppState.LOBBY, this.lobbyScreen);
+        this.screens.set(AppState.CUSTOMIZE_MENU, new CustomizeMenu());
+    }
 
-        // TODO: Add more screens as they're implemented
-        // this.screens.set(AppState.QUICK_PLAY_SETUP, new QuickPlaySetup());
-        // this.screens.set(AppState.LOBBY, new LobbyScreen());
-        // this.screens.set(AppState.SETTINGS_ROOT, new SettingsRoot());
-        // this.screens.set(AppState.POST_MATCH, new PostMatchScreen());
+    /**
+     * Set game callbacks for starting/resetting matches.
+     */
+    setGameCallbacks(callbacks: GameCallbacks): void {
+        this.quickPlaySetup.setStartGameCallback(callbacks.startGame);
+        this.postMatchScreen.setReplayCallback(callbacks.startGame);
+        this.lobbyScreen.setStartMatchCallback(callbacks.startGame);
+    }
+
+    /**
+     * Set match result for post-match screen.
+     */
+    setMatchResult(isWinner: boolean, stats: MatchStats): void {
+        this.postMatchScreen.setMatchResult(isWinner, stats);
     }
 
     private onNavigationEvent(event: NavigationEvent): void {
@@ -72,6 +112,13 @@ export class ScreenManager {
     }
 
     /**
+     * Check if currently in a game-related state (menus, not active gameplay).
+     */
+    isInMenuState(): boolean {
+        return this.handlesCurrentState() && this.navigation.getCurrentState() !== AppState.IN_MATCH;
+    }
+
+    /**
      * Process input for current screen.
      */
     handleInput(input: InputManager): void {
@@ -93,16 +140,14 @@ export class ScreenManager {
             this.currentScreen.handleBack();
         }
 
-        // Handle focus navigation via keyboard
+        // Handle focus navigation via keyboard (with cooldown to prevent rapid scrolling)
         const inputState = input.getState();
-        if (inputState.moveDirection.y < -0.5) {
+        const threshold = 0.7;
+
+        if (inputState.moveDirection.y < -threshold) {
             this.currentScreen.navigateFocus('up');
-        } else if (inputState.moveDirection.y > 0.5) {
+        } else if (inputState.moveDirection.y > threshold) {
             this.currentScreen.navigateFocus('down');
-        } else if (inputState.moveDirection.x < -0.5) {
-            this.currentScreen.navigateFocus('left');
-        } else if (inputState.moveDirection.x > 0.5) {
-            this.currentScreen.navigateFocus('right');
         }
     }
 
@@ -304,6 +349,13 @@ export class ScreenManager {
      */
     getCurrentState(): AppState {
         return this.navigation.getCurrentState();
+    }
+
+    /**
+     * Navigate to a specific state.
+     */
+    navigateTo(state: AppState): void {
+        this.navigation.forceNavigateTo(state);
     }
 
     /**

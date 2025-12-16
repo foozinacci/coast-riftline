@@ -3,22 +3,24 @@
 import {
   GamePhase,
   PlayerClass,
-  InputState,
+  AppState,
   Vector2,
 } from '../core/types';
-import { GAME_CONFIG, RELIC_CONFIG, ORB_CONFIG } from '../core/constants';
+import { GAME_CONFIG, ORB_CONFIG } from '../core/constants';
 import {
   distanceVec2,
   circleCircleCollision,
 } from '../core/utils';
 import { Renderer } from '../core/renderer';
 import { InputManager } from '../core/input';
+import { getNavigationManager } from '../core/navigation';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { Relic, RelicState } from '../entities/Relic';
 import { RespawnOrb } from '../entities/RespawnOrb';
 import { GameMap, Riftline, ProximityAwareness, SquadManager } from '../systems';
 import { HUD } from '../ui/HUD';
+import { ScreenManager } from '../ui/screens';
 import { AIController } from './AI';
 
 export class Game {
@@ -30,6 +32,7 @@ export class Game {
   private squadManager: SquadManager;
   private proximityAwareness: ProximityAwareness;
   private hud: HUD;
+  private screenManager: ScreenManager;
 
   // Game state
   private phase: GamePhase;
@@ -47,6 +50,9 @@ export class Game {
   private isGameOver: boolean;
   private winningSquadId: string | null;
 
+  // Menu mode flag (when true, show menus instead of game)
+  private useMenuSystem: boolean = true;
+
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.input = new InputManager(canvas);
@@ -55,6 +61,13 @@ export class Game {
     this.squadManager = new SquadManager();
     this.proximityAwareness = new ProximityAwareness();
     this.hud = new HUD(this.input.isMobileDevice());
+    this.screenManager = new ScreenManager(this.input.isMobileDevice());
+
+    // Set up game callbacks for the menu system
+    this.screenManager.setGameCallbacks({
+      startGame: () => this.startTestGame(),
+      resetGame: () => this.resetToLobby(),
+    });
 
     this.phase = GamePhase.LOBBY;
     this.localPlayer = null;
@@ -71,6 +84,7 @@ export class Game {
 
   // Initialize a test game with bots
   startTestGame(): void {
+    this.useMenuSystem = false;
     this.phase = GamePhase.PLAYING;
 
     // Generate relic positions
@@ -150,20 +164,50 @@ export class Game {
   }
 
   private fixedUpdate(dt: number): void {
-    // Lobby: tap/click to start a local test match.
-    if (this.phase === GamePhase.LOBBY) {
-      if (this.input.consumeConfirm()) {
-        this.startTestGame();
-      }
+    const navManager = getNavigationManager();
+    const currentAppState = navManager.getCurrentState();
+
+    // If in menu system and not in active match, let screen manager handle input
+    if (this.useMenuSystem && currentAppState !== AppState.IN_MATCH) {
+      this.screenManager.handleInput(this.input);
       return;
     }
 
-    // Game over: tap/click to return to lobby.
-    if (this.phase === GamePhase.GAME_OVER) {
-      if (this.input.consumeConfirm()) {
-        this.resetToLobby();
+    // Handle in-match pause
+    if (currentAppState === AppState.IN_MATCH || currentAppState === AppState.PAUSE_MENU) {
+      // Check for pause input
+      if (this.input.consumeBack()) {
+        if (currentAppState === AppState.IN_MATCH) {
+          navManager.navigateTo(AppState.PAUSE_MENU);
+          return;
+        } else if (currentAppState === AppState.PAUSE_MENU) {
+          navManager.navigateTo(AppState.IN_MATCH);
+          return;
+        }
       }
-      return;
+
+      // If paused, handle pause menu input
+      if (currentAppState === AppState.PAUSE_MENU) {
+        this.screenManager.handleInput(this.input);
+        return;
+      }
+    }
+
+    // Legacy lobby/game-over handling (fallback if menu system disabled)
+    if (!this.useMenuSystem) {
+      if (this.phase === GamePhase.LOBBY) {
+        if (this.input.consumeConfirm()) {
+          this.startTestGame();
+        }
+        return;
+      }
+
+      if (this.phase === GamePhase.GAME_OVER) {
+        if (this.input.consumeConfirm()) {
+          this.resetToLobby();
+        }
+        return;
+      }
     }
 
     if (this.phase !== GamePhase.PLAYING || this.isGameOver) return;
@@ -193,7 +237,6 @@ export class Game {
       }
 
       // Handle interact (pickup)
-      // Desktop: explicit interact. Mobile: auto-interact when in range to keep UI uncluttered.
       if (this.input.consumeInteract() || this.input.isMobileDevice()) {
         this.tryInteract(this.localPlayer);
       }
@@ -528,60 +571,84 @@ export class Game {
       this.isGameOver = true;
       this.winningSquadId = winner.id;
       this.phase = GamePhase.GAME_OVER;
+
+      // If using menu system, transition to post-match screen
+      if (this.useMenuSystem && this.localPlayer) {
+        const isWinner = this.localPlayer.squadId === this.winningSquadId;
+        this.screenManager.setMatchResult(isWinner, this.localPlayer.stats);
+        this.screenManager.navigateTo(AppState.POST_MATCH);
+      }
     }
   }
 
   render(): void {
+    const navManager = getNavigationManager();
+    const currentAppState = navManager.getCurrentState();
+    const screenSize = this.renderer.getScreenSize();
+
     this.renderer.beginFrame();
 
-    // Render map
-    this.map.render(this.renderer);
+    // Determine if we should render the game world or menu
+    const shouldRenderGame = !this.useMenuSystem ||
+      currentAppState === AppState.IN_MATCH ||
+      currentAppState === AppState.PAUSE_MENU ||
+      currentAppState === AppState.POST_MATCH;
 
-    // Render riftline
-    this.riftline.render(this.renderer);
+    if (shouldRenderGame && this.phase === GamePhase.PLAYING) {
+      // Render game world
+      this.map.render(this.renderer);
+      this.riftline.render(this.renderer);
 
-    // Render respawn orbs
-    for (const orb of this.respawnOrbs) {
-      if (orb.isActive) {
-        orb.render(this.renderer);
+      // Render respawn orbs
+      for (const orb of this.respawnOrbs) {
+        if (orb.isActive) {
+          orb.render(this.renderer);
+        }
+      }
+
+      // Render players
+      const allPlayers = this.squadManager.getAllPlayers();
+      for (const player of allPlayers) {
+        if (player.isActive) {
+          player.render(this.renderer);
+        }
+      }
+
+      // Render projectiles
+      for (const projectile of this.projectiles) {
+        if (projectile.isActive) {
+          projectile.render(this.renderer);
+        }
+      }
+
+      // Render proximity awareness
+      if (this.localPlayer && this.localPlayer.state.isAlive) {
+        const playerScreenPos = this.renderer.worldToScreen(this.localPlayer.position);
+        this.proximityAwareness.render(this.renderer, playerScreenPos);
+      }
+
+      // Render HUD (only in active match, not paused)
+      if (currentAppState === AppState.IN_MATCH) {
+        const riftlineState = this.riftline.getState();
+        this.hud.render(
+          this.renderer,
+          this.localPlayer,
+          this.phase,
+          riftlineState,
+          this.squadManager.getAliveSquads().length,
+          this.map.deliverySite.relicsDelivered,
+          GAME_CONFIG.totalRelics
+        );
       }
     }
 
-    // Render players
-    const allPlayers = this.squadManager.getAllPlayers();
-    for (const player of allPlayers) {
-      if (player.isActive) {
-        player.render(this.renderer);
-      }
+    // Render menu overlay if in menu state
+    if (this.useMenuSystem && this.screenManager.handlesCurrentState()) {
+      this.screenManager.render(this.renderer, screenSize.x, screenSize.y);
     }
 
-    // Render projectiles
-    for (const projectile of this.projectiles) {
-      if (projectile.isActive) {
-        projectile.render(this.renderer);
-      }
-    }
-
-    // Render proximity awareness
-    if (this.localPlayer && this.localPlayer.state.isAlive) {
-      const playerScreenPos = this.renderer.worldToScreen(this.localPlayer.position);
-      this.proximityAwareness.render(this.renderer, playerScreenPos);
-    }
-
-    // Render HUD
-    const riftlineState = this.riftline.getState();
-    this.hud.render(
-      this.renderer,
-      this.localPlayer,
-      this.phase,
-      riftlineState,
-      this.squadManager.getAliveSquads().length,
-      this.map.deliverySite.relicsDelivered,
-      GAME_CONFIG.totalRelics
-    );
-
-    // Render game over screen
-    if (this.isGameOver && this.localPlayer) {
+    // Legacy game over screen (if menu system disabled)
+    if (!this.useMenuSystem && this.isGameOver && this.localPlayer) {
       const isWinner = this.localPlayer.squadId === this.winningSquadId;
       this.hud.renderGameOver(this.renderer, isWinner, this.localPlayer.stats);
     }
@@ -603,6 +670,11 @@ export class Game {
       loadingEl.style.display = 'none';
     }
 
+    // Start with the menu system
+    if (this.useMenuSystem) {
+      this.screenManager.start();
+    }
+
     requestAnimationFrame(gameLoop);
   }
 
@@ -610,6 +682,7 @@ export class Game {
     this.phase = GamePhase.LOBBY;
     this.isGameOver = false;
     this.winningSquadId = null;
+    this.useMenuSystem = true;
 
     this.localPlayer = null;
     this.projectiles = [];
@@ -620,6 +693,9 @@ export class Game {
     this.map = new GameMap();
     this.riftline = new Riftline(GAME_CONFIG.mapWidth, GAME_CONFIG.mapHeight);
     this.proximityAwareness = new ProximityAwareness();
+
+    // Return to main menu
+    this.screenManager.navigateTo(AppState.MAIN_MENU);
   }
 
   getPhase(): GamePhase {
