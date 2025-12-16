@@ -44,15 +44,59 @@ interface ButtonDef {
   disabled?: boolean;
 }
 
+const LOGO_URL = 'https://i.ibb.co/VYbnBQjD/ei-1765901346915-removebg-preview.png';
+
 export class MenuRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private buttons: ButtonDef[] = [];
   private animTime: number = 0;
+  private logoImage: HTMLImageElement | null = null;
+  private logoLoaded: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
+    this.loadLogo();
+  }
+
+  private loadLogo(): void {
+    this.logoImage = new Image();
+    this.logoImage.crossOrigin = 'anonymous';
+    this.logoImage.onload = () => {
+      this.logoLoaded = true;
+    };
+    this.logoImage.onerror = () => {
+      console.warn('Failed to load logo image');
+      this.logoLoaded = false;
+    };
+    this.logoImage.src = LOGO_URL;
+  }
+
+  private renderLogo(x: number, y: number, maxWidth: number, maxHeight: number): void {
+    if (this.logoLoaded && this.logoImage) {
+      // Calculate aspect-ratio preserving dimensions
+      const aspectRatio = this.logoImage.width / this.logoImage.height;
+      let drawWidth = maxWidth;
+      let drawHeight = maxWidth / aspectRatio;
+
+      if (drawHeight > maxHeight) {
+        drawHeight = maxHeight;
+        drawWidth = maxHeight * aspectRatio;
+      }
+
+      const drawX = x - drawWidth / 2;
+      const drawY = y - drawHeight / 2;
+
+      this.ctx.drawImage(this.logoImage, drawX, drawY, drawWidth, drawHeight);
+    } else {
+      // Fallback to text if logo not loaded
+      this.ctx.fillStyle = COLORS.primary;
+      this.ctx.font = 'bold 56px "Segoe UI", system-ui, sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText('RIFTLINE', x, y);
+    }
   }
 
   render(state: MenuState, deltaTime: number): ButtonDef[] {
@@ -137,17 +181,14 @@ export class MenuRenderer {
   }
 
   private renderLanding(width: number, height: number, state: MenuState): void {
-    // Title
-    this.ctx.fillStyle = COLORS.primary;
-    this.ctx.font = 'bold 56px "Segoe UI", system-ui, sans-serif';
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillText('RIFTLINE', width / 2, height * 0.2);
+    // Logo
+    this.renderLogo(width / 2, height * 0.18, 280, 120);
 
     // Subtitle
     this.ctx.fillStyle = COLORS.textDim;
     this.ctx.font = '18px "Segoe UI", system-ui, sans-serif';
-    this.ctx.fillText('Squad Battle Royale', width / 2, height * 0.2 + 50);
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('Squad Battle Royale', width / 2, height * 0.3);
 
     // Sign in options
     const buttonWidth = 280;
@@ -209,11 +250,8 @@ export class MenuRenderer {
       this.ctx.fillText('Guest Mode', 30, 60);
     }
 
-    // Title
-    this.ctx.fillStyle = COLORS.primary;
-    this.ctx.font = 'bold 42px "Segoe UI", system-ui, sans-serif';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('RIFTLINE', width / 2, height * 0.15);
+    // Logo
+    this.renderLogo(width / 2, height * 0.12, 200, 80);
 
     // Main buttons
     const buttonWidth = 300;
