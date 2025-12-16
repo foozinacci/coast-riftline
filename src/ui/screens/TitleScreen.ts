@@ -4,11 +4,29 @@
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { AppState } from '../../core/types';
 
+const LOGO_URL = 'https://i.ibb.co/VYbnBQjD/ei-1765901346915-removebg-preview.png';
+
 export class TitleScreen extends BaseScreen {
     private animationTime: number = 0;
+    private logoImage: HTMLImageElement | null = null;
+    private logoLoaded: boolean = false;
 
     constructor() {
         super(AppState.TITLE);
+        this.loadLogo();
+    }
+
+    private loadLogo(): void {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            this.logoImage = img;
+            this.logoLoaded = true;
+        };
+        img.onerror = () => {
+            console.warn('Failed to load logo image');
+        };
+        img.src = LOGO_URL;
     }
 
     onEnter(): void {
@@ -31,24 +49,43 @@ export class TitleScreen extends BaseScreen {
         this.renderBackgroundEffects(ctx);
 
         // Logo / Title
-        const titleY = screenHeight * 0.35;
+        const titleY = screenHeight * 0.30;
         const pulseScale = 1 + Math.sin(this.animationTime * 2) * 0.02;
 
-        renderer.drawScreenText(
-            'RIFTLINE',
-            screenWidth / 2,
-            titleY,
-            'rgba(100, 200, 255, 1)',
-            Math.floor(72 * pulseScale),
-            'center',
-            'middle'
-        );
+        // Render logo image if loaded, otherwise text
+        if (this.logoLoaded && this.logoImage) {
+            const logoWidth = 200 * pulseScale;
+            const logoHeight = 200 * pulseScale;
+            const logoX = screenWidth / 2 - logoWidth / 2;
+            const logoY = titleY - logoHeight / 2;
+
+            // Draw logo using canvas context
+            const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+            if (canvas) {
+                const ctx2d = canvas.getContext('2d');
+                if (ctx2d) {
+                    ctx2d.drawImage(this.logoImage, logoX, logoY, logoWidth, logoHeight);
+                }
+            }
+        } else {
+            // Fallback to text
+            renderer.drawScreenText(
+                'RIFTLINE',
+                screenWidth / 2,
+                titleY,
+                'rgba(100, 200, 255, 1)',
+                Math.floor(72 * pulseScale),
+                'center',
+                'middle'
+            );
+        }
 
         // Tagline
+        const taglineY = this.logoLoaded ? titleY + 120 : titleY + 60;
         renderer.drawScreenText(
             'Squad-Based Battle Royale',
             screenWidth / 2,
-            titleY + 60,
+            taglineY,
             'rgba(150, 160, 180, 1)',
             20,
             'center',

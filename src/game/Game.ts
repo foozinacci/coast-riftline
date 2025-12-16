@@ -231,12 +231,14 @@ export class Game {
         this.tryFireWeapon(this.localPlayer);
       }
 
-      // Handle reload
-      if (this.input.consumeReload()) {
+      // Handle reload - auto-reload on mobile when empty
+      const shouldReload = this.input.consumeReload() ||
+        (this.input.isMobileDevice() && this.localPlayer.weapon.currentAmmo === 0);
+      if (shouldReload) {
         this.localPlayer.reload();
       }
 
-      // Handle interact (pickup)
+      // Handle interact (pickup) - always auto-loot on mobile
       if (this.input.consumeInteract() || this.input.isMobileDevice()) {
         this.tryInteract(this.localPlayer);
       }
