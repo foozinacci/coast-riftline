@@ -198,8 +198,6 @@ export class ScreenManager {
      * Render current screen and any active modal.
      */
     render(renderer: Renderer, screenWidth: number, screenHeight: number): void {
-        if (!this.currentScreen) return;
-
         const context: ScreenContext = {
             renderer,
             screenWidth,
@@ -207,6 +205,22 @@ export class ScreenManager {
             focusState: this.navigation.getFocusState(),
             isMobile: this.isMobile,
         };
+
+        // If no current screen, render a fallback (shouldn't happen in normal flow)
+        if (!this.currentScreen) {
+            // Fallback: just clear to dark background
+            renderer.drawScreenRect(0, 0, screenWidth, screenHeight, 'rgba(15, 18, 25, 1)');
+            renderer.drawScreenText(
+                'Loading...',
+                screenWidth / 2,
+                screenHeight / 2,
+                'rgba(100, 105, 115, 1)',
+                18,
+                'center',
+                'middle'
+            );
+            return;
+        }
 
         // Render current screen
         this.currentScreen.render(context);
