@@ -247,8 +247,11 @@ export class Game {
     // Create relics and delivery sites
     this.spawnRelicsAndSites();
 
-    // Create structures for cover
-    this.spawnStructures();
+    // Create structures for cover (avoid player spawn area)
+    this.spawnStructures(spawnX, spawnY);
+
+    // Make sure player isn't stuck inside a structure
+    this.resolvePlayerStructureCollisions(player.position, roleStats.hitboxRadius);
 
     // Set camera to follow player immediately
     this.camera.follow(player.position);
@@ -351,9 +354,9 @@ export class Game {
     }
   }
 
-  private spawnStructures(): void {
+  private spawnStructures(playerSpawnX: number, playerSpawnY: number): void {
     const ms = this.matchState;
-    const structureTypes: StructureType[] = ['wall', 'crate', 'pillar', 'building', 'barrier'];
+    const spawnSafeRadius = 150; // Keep structures away from player spawn
 
     // Create a grid-based layout for cover throughout the map
     const gridSize = 400; // Distance between structure clusters
@@ -369,6 +372,12 @@ export class Game {
         const offsetY = randomRange(-100, 100);
         const centerX = x + offsetX;
         const centerY = y + offsetY;
+
+        // Skip if too close to player spawn
+        const distToSpawn = Math.sqrt(
+          Math.pow(centerX - playerSpawnX, 2) + Math.pow(centerY - playerSpawnY, 2)
+        );
+        if (distToSpawn < spawnSafeRadius) continue;
 
         // Randomly decide what type of structure cluster to place
         const clusterType = randomInt(0, 4);
