@@ -180,6 +180,12 @@ export class Game {
 
   // Initialize a test match for single-player development
   initTestMatch(): void {
+    // Reset match state completely
+    this.matchState = this.createEmptyMatchState();
+    this.projectiles = [];
+    this.orbs = [];
+    this.lastFireTime.clear();
+
     const ms = this.matchState;
     ms.phase = 'open';
     this.currentScreen = 'match';
@@ -188,6 +194,11 @@ export class Game {
     const teamId = 'team_local';
     const playerId = 'player_local';
     const role = this.selectedRole;
+
+    // Get role stats with fallback
+    const roleStats = ROLE_STATS[role] || ROLE_STATS.skirmisher;
+    const spawnX = this.config.mapWidth / 2;
+    const spawnY = this.config.mapHeight / 2;
 
     const team: Team = {
       id: teamId,
@@ -205,11 +216,11 @@ export class Game {
       name: 'Player',
       teamId,
       role,
-      position: vec2(this.config.mapWidth / 2, this.config.mapHeight / 2),
+      position: vec2(spawnX, spawnY),
       velocity: vec2(),
       rotation: -Math.PI / 2, // Face up initially
-      health: ROLE_STATS[role].maxHealth,
-      shield: ROLE_STATS[role].maxShield,
+      health: roleStats.maxHealth,
+      shield: roleStats.maxShield,
       isAlive: true,
       respawnTimer: 0,
       weapon: this.defaultWeapon,
@@ -218,6 +229,17 @@ export class Game {
     };
     ms.players.set(playerId, player);
     this.localPlayerId = playerId;
+
+    // Create initial riftline ring FIRST (before enemies spawn)
+    // Make ring very large initially to ensure all spawns are safe
+    ms.rings.push({
+      id: 'ring_main',
+      center: vec2(spawnX, spawnY),
+      currentRadius: Math.max(this.config.mapWidth, this.config.mapHeight), // Full map size
+      targetRadius: 800,
+      shrinkRate: 5, // Slower shrink rate
+      damage: 5, // damage per second
+    });
 
     // Add some enemy teams for testing
     this.spawnTestEnemies(3);
@@ -228,17 +250,18 @@ export class Game {
     // Create structures for cover
     this.spawnStructures();
 
-    // Create initial riftline ring
-    ms.rings.push({
-      id: 'ring_main',
-      center: vec2(this.config.mapWidth / 2, this.config.mapHeight / 2),
-      currentRadius: Math.max(this.config.mapWidth, this.config.mapHeight) * 0.6,
-      targetRadius: 800,
-      shrinkRate: 10, // units per second
-      damage: 5, // damage per second
-    });
-
+    // Set camera to follow player immediately
     this.camera.follow(player.position);
+    // Also force camera position to player position immediately
+    this.camera.position = { x: spawnX, y: spawnY };
+    this.camera.targetPosition = { x: spawnX, y: spawnY };
+
+    console.log('Match initialized:', {
+      playerHealth: player.health,
+      playerShield: player.shield,
+      playerPosition: player.position,
+      ringRadius: ms.rings[0].currentRadius,
+    });
   }
 
   private spawnTestEnemies(count: number): void {

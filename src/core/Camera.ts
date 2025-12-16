@@ -22,7 +22,12 @@ export class Camera {
   }
 
   follow(target: Vector2): void {
-    this.targetPosition = { ...target };
+    // Copy the target position (don't reference it)
+    this.targetPosition = { x: target.x, y: target.y };
+    // Also set current position immediately for first frame
+    if (this.position.x === 0 && this.position.y === 0) {
+      this.position = { x: target.x, y: target.y };
+    }
   }
 
   setZoom(zoom: number): void {
@@ -33,16 +38,26 @@ export class Camera {
     this.setZoom(this.targetZoom + delta);
   }
 
+  // Get the logical canvas dimensions (CSS pixels, not device pixels)
+  private getCanvasDimensions(): { width: number; height: number } {
+    const dpr = window.devicePixelRatio || 1;
+    return {
+      width: this.canvas.width / dpr,
+      height: this.canvas.height / dpr,
+    };
+  }
+
   update(deltaTime: number): void {
     // Smooth camera movement
     const t = 1 - Math.pow(1 - this.smoothing, deltaTime * 60);
     this.position = vec2Lerp(this.position, this.targetPosition, t);
     this.zoom = this.zoom + (this.targetZoom - this.zoom) * t;
 
-    // Apply bounds
+    // Apply bounds using logical dimensions
     if (this.bounds) {
-      const halfWidth = (this.canvas.width / this.zoom) / 2;
-      const halfHeight = (this.canvas.height / this.zoom) / 2;
+      const { width, height } = this.getCanvasDimensions();
+      const halfWidth = (width / this.zoom) / 2;
+      const halfHeight = (height / this.zoom) / 2;
 
       this.position.x = clamp(
         this.position.x,
@@ -58,28 +73,32 @@ export class Camera {
   }
 
   worldToScreen(worldPos: Vector2): Vector2 {
+    const { width, height } = this.getCanvasDimensions();
     return {
-      x: (worldPos.x - this.position.x) * this.zoom + this.canvas.width / 2,
-      y: (worldPos.y - this.position.y) * this.zoom + this.canvas.height / 2,
+      x: (worldPos.x - this.position.x) * this.zoom + width / 2,
+      y: (worldPos.y - this.position.y) * this.zoom + height / 2,
     };
   }
 
   screenToWorld(screenPos: Vector2): Vector2 {
+    const { width, height } = this.getCanvasDimensions();
     return {
-      x: (screenPos.x - this.canvas.width / 2) / this.zoom + this.position.x,
-      y: (screenPos.y - this.canvas.height / 2) / this.zoom + this.position.y,
+      x: (screenPos.x - width / 2) / this.zoom + this.position.x,
+      y: (screenPos.y - height / 2) / this.zoom + this.position.y,
     };
   }
 
   applyTransform(ctx: CanvasRenderingContext2D): void {
-    ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+    const { width, height } = this.getCanvasDimensions();
+    ctx.translate(width / 2, height / 2);
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.position.x, -this.position.y);
   }
 
   getVisibleBounds(): { minX: number; minY: number; maxX: number; maxY: number } {
-    const halfWidth = (this.canvas.width / this.zoom) / 2;
-    const halfHeight = (this.canvas.height / this.zoom) / 2;
+    const { width, height } = this.getCanvasDimensions();
+    const halfWidth = (width / this.zoom) / 2;
+    const halfHeight = (height / this.zoom) / 2;
     return {
       minX: this.position.x - halfWidth,
       minY: this.position.y - halfHeight,
