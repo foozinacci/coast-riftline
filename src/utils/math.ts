@@ -86,3 +86,124 @@ export function circlesOverlap(
 ): boolean {
   return vec2Distance(c1, c2) < r1 + r2;
 }
+
+// Check if a circle collides with a rotated rectangle
+export function circleRectCollision(
+  circlePos: Vector2,
+  circleRadius: number,
+  rectPos: Vector2,
+  rectWidth: number,
+  rectHeight: number,
+  rectRotation: number
+): boolean {
+  // Transform circle position to rectangle's local space
+  const dx = circlePos.x - rectPos.x;
+  const dy = circlePos.y - rectPos.y;
+
+  // Rotate point to align with rectangle
+  const cos = Math.cos(-rectRotation);
+  const sin = Math.sin(-rectRotation);
+  const localX = dx * cos - dy * sin;
+  const localY = dx * sin + dy * cos;
+
+  // Find closest point on rectangle to circle center
+  const halfW = rectWidth / 2;
+  const halfH = rectHeight / 2;
+  const closestX = clamp(localX, -halfW, halfW);
+  const closestY = clamp(localY, -halfH, halfH);
+
+  // Check distance from circle center to closest point
+  const distX = localX - closestX;
+  const distY = localY - closestY;
+  const distSq = distX * distX + distY * distY;
+
+  return distSq < circleRadius * circleRadius;
+}
+
+// Get the collision normal for pushing a circle out of a rectangle
+export function getCircleRectPushVector(
+  circlePos: Vector2,
+  circleRadius: number,
+  rectPos: Vector2,
+  rectWidth: number,
+  rectHeight: number,
+  rectRotation: number
+): Vector2 | null {
+  // Transform circle position to rectangle's local space
+  const dx = circlePos.x - rectPos.x;
+  const dy = circlePos.y - rectPos.y;
+
+  // Rotate point to align with rectangle
+  const cos = Math.cos(-rectRotation);
+  const sin = Math.sin(-rectRotation);
+  const localX = dx * cos - dy * sin;
+  const localY = dx * sin + dy * cos;
+
+  // Find closest point on rectangle to circle center
+  const halfW = rectWidth / 2;
+  const halfH = rectHeight / 2;
+  const closestX = clamp(localX, -halfW, halfW);
+  const closestY = clamp(localY, -halfH, halfH);
+
+  // Check distance from circle center to closest point
+  const distX = localX - closestX;
+  const distY = localY - closestY;
+  const distSq = distX * distX + distY * distY;
+
+  if (distSq >= circleRadius * circleRadius) {
+    return null; // No collision
+  }
+
+  const dist = Math.sqrt(distSq);
+  if (dist === 0) {
+    // Circle center is inside rectangle, push out in the shortest direction
+    const overlapX = halfW - Math.abs(localX);
+    const overlapY = halfH - Math.abs(localY);
+
+    let pushX = 0, pushY = 0;
+    if (overlapX < overlapY) {
+      pushX = (localX > 0 ? 1 : -1) * (overlapX + circleRadius);
+    } else {
+      pushY = (localY > 0 ? 1 : -1) * (overlapY + circleRadius);
+    }
+
+    // Rotate push vector back to world space
+    const worldPushX = pushX * Math.cos(rectRotation) - pushY * Math.sin(rectRotation);
+    const worldPushY = pushX * Math.sin(rectRotation) + pushY * Math.cos(rectRotation);
+    return { x: worldPushX, y: worldPushY };
+  }
+
+  // Calculate push vector in local space
+  const overlap = circleRadius - dist;
+  const pushLocalX = (distX / dist) * overlap;
+  const pushLocalY = (distY / dist) * overlap;
+
+  // Rotate push vector back to world space
+  const pushWorldX = pushLocalX * Math.cos(rectRotation) - pushLocalY * Math.sin(rectRotation);
+  const pushWorldY = pushLocalX * Math.sin(rectRotation) + pushLocalY * Math.cos(rectRotation);
+
+  return { x: pushWorldX, y: pushWorldY };
+}
+
+// Check if a point is inside a rotated rectangle
+export function pointInRotatedRect(
+  point: Vector2,
+  rectPos: Vector2,
+  rectWidth: number,
+  rectHeight: number,
+  rectRotation: number
+): boolean {
+  // Transform point to rectangle's local space
+  const dx = point.x - rectPos.x;
+  const dy = point.y - rectPos.y;
+
+  const cos = Math.cos(-rectRotation);
+  const sin = Math.sin(-rectRotation);
+  const localX = dx * cos - dy * sin;
+  const localY = dx * sin + dy * cos;
+
+  const halfW = rectWidth / 2;
+  const halfH = rectHeight / 2;
+
+  return localX >= -halfW && localX <= halfW && localY >= -halfH && localY <= halfH;
+}

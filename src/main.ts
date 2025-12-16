@@ -23,15 +23,12 @@ function init(): void {
     relicCount: 5,
   });
 
-  // Initialize test match for development
-  game.initTestMatch();
-
   // Hide loading screen
   if (loading) {
     loading.style.display = 'none';
   }
 
-  // Start game loop
+  // Start game loop (shows landing page first)
   game.start();
 
   // Expose for debugging
