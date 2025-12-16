@@ -20,6 +20,12 @@ export class InputManager {
   private readonly joystickRadius = 60;
   private readonly joystickDeadzone = 10;
 
+  // Tap detection for menu navigation
+  private tapStartTime: number = 0;
+  private tapStartPos: Vector2 | null = null;
+  private readonly TAP_MAX_DURATION = 300; // ms
+  private readonly TAP_MAX_DISTANCE = 20; // pixels
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.inputState = {
@@ -145,8 +151,15 @@ export class InputManager {
     const rect = this.canvas.getBoundingClientRect();
     const centerX = rect.width / 2;
 
-    // Any touch is a generic "confirm" tap (consumed in lobby/game-over).
-    this.inputState.confirm = true;
+    // Track tap start for proper tap detection (only first touch)
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      this.tapStartTime = performance.now();
+      this.tapStartPos = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
+      };
+    }
 
     // If two touches are active, initialize pinch baseline.
     if (e.touches.length >= 2) {
@@ -263,6 +276,7 @@ export class InputManager {
 
   private onTouchEnd(e: TouchEvent): void {
     e.preventDefault();
+    const rect = this.canvas.getBoundingClientRect();
 
     // Reset pinch tracking when fewer than two touches remain
     if (e.touches.length < 2) {
@@ -271,6 +285,19 @@ export class InputManager {
 
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+
+      // Detect tap (quick touch without much movement) for menu confirm
+      if (this.tapStartPos && e.touches.length === 0) {
+        const tapDuration = performance.now() - this.tapStartTime;
+        const tapDistance = Math.hypot(x - this.tapStartPos.x, y - this.tapStartPos.y);
+
+        if (tapDuration < this.TAP_MAX_DURATION && tapDistance < this.TAP_MAX_DISTANCE) {
+          this.inputState.confirm = true;
+        }
+        this.tapStartPos = null;
+      }
 
       if (touch.identifier === this.touchState.moveTouchId) {
         this.touchState.moveTouchId = null;
@@ -283,11 +310,6 @@ export class InputManager {
         this.touchState.aimStart = null;
         this.inputState.isFiring = false;
       }
-    }
-
-    // Reset pinch baseline when fewer than 2 touches remain.
-    if (e.touches.length < 2) {
-      this.pinchStartDist = null;
     }
   }
 
