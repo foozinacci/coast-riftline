@@ -122,6 +122,8 @@ export class ScreenManager {
             this.currentScreen.onEnter();
         } else {
             this.currentScreen = null;
+            // Fallback: redirect to TITLE screen if state not handled
+            this.navigation.forceNavigateTo(AppState.TITLE);
         }
     }
 
