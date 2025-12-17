@@ -70,7 +70,7 @@ export class HUD {
 
       // Touch controls overlay
       if (this.showTouchControls) {
-        this.renderTouchControls(renderer, screen);
+        this.renderTouchControls(renderer, screen, player);
       }
     }
 
@@ -408,63 +408,131 @@ export class HUD {
 
   private renderTouchControls(
     renderer: Renderer,
-    screen: { x: number; y: number }
+    screen: { x: number; y: number },
+    player: Player
   ): void {
-    const joystickRadius = 60;
-    const joystickAlpha = 0.2;
+    const buttonSize = 50;
+    const buttonAlpha = 0.35;
+    const margin = 20;
 
-    // Left joystick (movement)
+    // Right side - ability buttons (replacing fixed joystick)
+    const rightBaseX = screen.x - margin - buttonSize;
+    const rightBaseY = screen.y - margin - buttonSize;
+
+    // Fire button (largest, bottom right)
+    const fireSize = 70;
+    renderer.drawScreenCircle(
+      { x: rightBaseX - fireSize / 2 + buttonSize / 2, y: rightBaseY - fireSize / 2 + buttonSize / 2 },
+      fireSize / 2,
+      colorWithAlpha('#ff4444', buttonAlpha),
+      colorWithAlpha('#ff4444', buttonAlpha * 2),
+      3
+    );
+    renderer.drawScreenText(
+      'FIRE',
+      rightBaseX - fireSize / 2 + buttonSize / 2,
+      rightBaseY - fireSize / 2 + buttonSize / 2,
+      colorWithAlpha('#ffffff', 0.5),
+      14,
+      'center',
+      'middle'
+    );
+
+    // Dash button (above fire)
+    const dashY = rightBaseY - fireSize - margin;
+    renderer.drawScreenCircle(
+      { x: rightBaseX - buttonSize / 2 + buttonSize / 2, y: dashY },
+      buttonSize / 2,
+      colorWithAlpha('#00ccff', buttonAlpha),
+      colorWithAlpha('#00ccff', buttonAlpha * 2),
+      2
+    );
+    // Show dash charges
+    const dashReady = player.dashCharges > 0;
+    renderer.drawScreenText(
+      dashReady ? `${player.dashCharges}` : '0',
+      rightBaseX,
+      dashY - 5,
+      colorWithAlpha(dashReady ? '#ffffff' : '#666666', dashReady ? 0.8 : 0.4),
+      16,
+      'center',
+      'middle'
+    );
+    renderer.drawScreenText(
+      'DASH',
+      rightBaseX,
+      dashY + 12,
+      colorWithAlpha('#ffffff', 0.4),
+      8,
+      'center',
+      'middle'
+    );
+
+    // Tactical button (above dash)
+    const tacticalY = dashY - buttonSize - margin;
+    const tacticalReady = player.isTacticalReady();
+    const tacticalProgress = player.getTacticalProgress();
+
+    // Progress ring if cooling down
+    if (!tacticalReady) {
+      // Draw cooldown progress as partial circle
+      const ctx = renderer.getContext();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(rightBaseX, tacticalY, buttonSize / 2 + 3, -Math.PI / 2, -Math.PI / 2 + (tacticalProgress * Math.PI * 2), false);
+      ctx.strokeStyle = colorWithAlpha('#ffcc00', 0.6);
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    renderer.drawScreenCircle(
+      { x: rightBaseX, y: tacticalY },
+      buttonSize / 2,
+      colorWithAlpha(tacticalReady ? '#ffcc00' : '#555555', buttonAlpha),
+      colorWithAlpha(tacticalReady ? '#ffcc00' : '#555555', buttonAlpha * 2),
+      2
+    );
+    renderer.drawScreenText(
+      tacticalReady ? 'Q' : `${Math.ceil((1 - tacticalProgress) * (player.tacticalCooldown / 1000))}`,
+      rightBaseX,
+      tacticalY,
+      colorWithAlpha(tacticalReady ? '#ffffff' : '#aaaaaa', 0.6),
+      tacticalReady ? 14 : 12,
+      'center',
+      'middle'
+    );
+
+    // Reload button (left of fire)
+    const reloadX = rightBaseX - fireSize - margin;
+    renderer.drawScreenCircle(
+      { x: reloadX, y: rightBaseY - fireSize / 2 + buttonSize / 2 },
+      buttonSize / 2,
+      colorWithAlpha('#44ff44', buttonAlpha),
+      colorWithAlpha('#44ff44', buttonAlpha * 2),
+      2
+    );
+    renderer.drawScreenText(
+      'R',
+      reloadX,
+      rightBaseY - fireSize / 2 + buttonSize / 2,
+      colorWithAlpha('#ffffff', 0.5),
+      14,
+      'center',
+      'middle'
+    );
+
+    // Left side hint - dynamic joystick area
     const leftX = 100;
     const leftY = screen.y - 120;
-
-    renderer.drawScreenCircle(
-      { x: leftX, y: leftY },
-      joystickRadius,
-      colorWithAlpha('#ffffff', joystickAlpha),
-      colorWithAlpha('#ffffff', joystickAlpha * 2),
-      2
-    );
-    renderer.drawScreenCircle(
-      { x: leftX, y: leftY },
-      20,
-      colorWithAlpha('#ffffff', joystickAlpha * 1.5)
-    );
-
-    // Right joystick (aim/fire)
-    const rightX = screen.x - 100;
-    const rightY = screen.y - 120;
-
-    renderer.drawScreenCircle(
-      { x: rightX, y: rightY },
-      joystickRadius,
-      colorWithAlpha('#ff4444', joystickAlpha),
-      colorWithAlpha('#ff4444', joystickAlpha * 2),
-      2
-    );
-    renderer.drawScreenCircle(
-      { x: rightX, y: rightY },
-      20,
-      colorWithAlpha('#ff4444', joystickAlpha * 1.5)
-    );
-
-    // Labels
     renderer.drawScreenText(
-      'MOVE',
+      'TOUCH TO MOVE',
       leftX,
-      leftY + joystickRadius + 15,
-      colorWithAlpha('#ffffff', 0.3),
-      10,
+      leftY,
+      colorWithAlpha('#ffffff', 0.2),
+      12,
       'center',
-      'top'
-    );
-    renderer.drawScreenText(
-      'AIM & FIRE',
-      rightX,
-      rightY + joystickRadius + 15,
-      colorWithAlpha('#ff4444', 0.3),
-      10,
-      'center',
-      'top'
+      'middle'
     );
 
     // Mobile zoom buttons (per spec A6)

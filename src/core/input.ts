@@ -194,20 +194,20 @@ export class InputManager {
 
       // Check for zoom button taps (per spec A6 - mobile zoom buttons)
       // Buttons are positioned at: right edge - 60px, vertically centered
-      const buttonSize = 40;
+      const zoomButtonSize = 40;
       const buttonX = rect.width - 60;
       const buttonCenterY = rect.height / 2;
-      const zoomInY = buttonCenterY - buttonSize - 10;
+      const zoomInY = buttonCenterY - zoomButtonSize - 10;
       const zoomOutY = buttonCenterY + 10;
 
       // Check zoom in button (+)
-      if (this.isPointInButton(x, y, buttonX, zoomInY, buttonSize)) {
+      if (this.isPointInButton(x, y, buttonX, zoomInY, zoomButtonSize)) {
         this.inputState.zoom = Math.min(2, this.inputState.zoom + 0.15);
         return; // Consume this touch for zoom
       }
 
       // Check zoom out button (-)
-      if (this.isPointInButton(x, y, buttonX, zoomOutY, buttonSize)) {
+      if (this.isPointInButton(x, y, buttonX, zoomOutY, zoomButtonSize)) {
         this.inputState.zoom = Math.max(0.5, this.inputState.zoom - 0.15);
         return; // Consume this touch for zoom
       }
@@ -218,16 +218,51 @@ export class InputManager {
         return;
       }
 
-      // Left side = movement joystick
+      // Mobile ability buttons (right side)
+      const buttonSize = 50;
+      const margin = 20;
+      const rightBaseX = rect.width - margin - buttonSize;
+      const rightBaseY = rect.height - margin - buttonSize;
+      const fireSize = 70;
+
+      // Fire button (bottom right, large)
+      const fireX = rightBaseX - fireSize / 2 + buttonSize / 2;
+      const fireY = rightBaseY - fireSize / 2 + buttonSize / 2;
+      if (this.isPointInButton(x, y, fireX, fireY, fireSize)) {
+        this.inputState.isFiring = true;
+        return;
+      }
+
+      // Dash button (above fire)
+      const dashY = rightBaseY - fireSize - margin;
+      if (this.isPointInButton(x, y, rightBaseX, dashY, buttonSize)) {
+        this.inputState.dash = true;
+        return;
+      }
+
+      // Tactical button (above dash)
+      const tacticalY = dashY - buttonSize - margin;
+      if (this.isPointInButton(x, y, rightBaseX, tacticalY, buttonSize)) {
+        this.inputState.tactical = true;
+        return;
+      }
+
+      // Reload button (left of fire)
+      const reloadX = rightBaseX - fireSize - margin;
+      if (this.isPointInButton(x, y, reloadX, fireY, buttonSize)) {
+        this.inputState.isReloading = true;
+        return;
+      }
+
+      // Left side = movement joystick (dynamic)
       if (x < centerX && this.touchState.moveTouchId === null) {
         this.touchState.moveTouchId = touch.identifier;
         this.touchState.moveStart = { x, y };
       }
-      // Right side = aim joystick / fire
+      // Right side (non-button area) = aim
       else if (x >= centerX && this.touchState.aimTouchId === null) {
         this.touchState.aimTouchId = touch.identifier;
         this.touchState.aimStart = { x, y };
-        this.inputState.isFiring = true;
       }
     }
   }
