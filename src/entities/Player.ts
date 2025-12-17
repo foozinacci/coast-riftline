@@ -22,7 +22,7 @@ import {
   degToRad,
   randomRange,
 } from '../core/utils';
-import { CLASS_CONFIGS, WEAPON_CONFIGS, BACKPACK_CONFIGS, COLORS } from '../core/constants';
+import { CLASS_CONFIGS, WEAPON_CONFIGS, BACKPACK_CONFIGS, COLORS, GAME_CONFIG } from '../core/constants';
 import { Renderer } from '../core/renderer';
 
 export interface PlayerState {
@@ -510,6 +510,9 @@ export class Player extends Entity {
     this.state.health = 0;
     this.state.shield = 0;
     this.stats.deaths++;
+
+    // Start respawn timer (prevents immediate squad elimination)
+    this.state.respawnTimer = GAME_CONFIG.respawnBaseCooldown;
 
     // Drop relic if carrying
     if (this.hasRelic) {
