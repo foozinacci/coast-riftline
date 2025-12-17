@@ -312,6 +312,8 @@ export class InputManager {
         const tapDistance = Math.hypot(x - this.tapStartPos.x, y - this.tapStartPos.y);
 
         if (tapDuration < this.TAP_MAX_DURATION && tapDistance < this.TAP_MAX_DISTANCE) {
+          // Update mouse position to tap location so menu buttons get focused
+          this.mousePosition = { x, y };
           this.inputState.confirm = true;
         }
         this.tapStartPos = null;

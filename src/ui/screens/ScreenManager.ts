@@ -148,7 +148,13 @@ export class ScreenManager {
 
         if (!this.currentScreen) return;
 
-        // Handle confirm
+        // Handle mouse/touch focus FIRST (before confirm, so taps work on mobile)
+        const mousePos = input.getMousePosition();
+        if (mousePos && this.currentScreen) {
+            this.currentScreen.handleMouseMove(mousePos.x, mousePos.y);
+        }
+
+        // Handle confirm (after focus so mobile taps select the tapped button)
         if (input.consumeConfirm()) {
             this.currentScreen.handleConfirm();
         }
@@ -171,12 +177,6 @@ export class ScreenManager {
                 this.currentScreen.navigateFocus('down');
                 this.lastFocusTime = now;
             }
-        }
-
-        // Handle mouse focus
-        const mousePos = input.getMousePosition();
-        if (mousePos && this.currentScreen) {
-            this.currentScreen.handleMouseMove(mousePos.x, mousePos.y);
         }
     }
 
