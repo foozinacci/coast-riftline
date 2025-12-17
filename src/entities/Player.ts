@@ -76,6 +76,22 @@ export class Player extends Entity {
   bodyRadius: number;
   lastDamageTime: number;
 
+  // Dash ability
+  maxDashes: number;
+  dashCharges: number;
+  dashCooldown: number;      // Time to regenerate one dash (ms)
+  dashRegenTimer: number;    // Countdown to next dash recharge
+  isDashing: boolean;
+  dashTimer: number;         // Current dash duration timer
+  dashDirection: Vector2;    // Direction of current dash
+  dashSpeed: number;         // Speed multiplier during dash
+
+  // Tactical ability
+  tacticalCooldown: number;  // Total cooldown (ms)
+  tacticalTimer: number;     // Current cooldown timer
+  tacticalActive: boolean;   // Is ability currently active?
+  tacticalDuration: number;  // How long ability lasts (if applicable)
+
   constructor(
     x: number,
     y: number,
@@ -135,6 +151,22 @@ export class Player extends Entity {
     this.orbCount = 0;
     this.lastDamageTime = 0;
 
+    // Initialize dash ability from class config
+    this.maxDashes = classConfig.dashes;
+    this.dashCharges = classConfig.dashes;
+    this.dashCooldown = 3000; // 3 seconds per dash recharge
+    this.dashRegenTimer = 0;
+    this.isDashing = false;
+    this.dashTimer = 0;
+    this.dashDirection = vec2(0, 0);
+    this.dashSpeed = 3.0; // 3x speed during dash
+
+    // Initialize tactical ability
+    this.tacticalCooldown = this.getTacticalCooldown(playerClass);
+    this.tacticalTimer = 0;
+    this.tacticalActive = false;
+    this.tacticalDuration = 0;
+
     this.stats = {
       kills: 0,
       deaths: 0,
@@ -143,6 +175,16 @@ export class Player extends Entity {
       orbsCollected: 0,
       respawnsUsed: 0,
     };
+  }
+
+  private getTacticalCooldown(playerClass: PlayerClass): number {
+    switch (playerClass) {
+      case PlayerClass.SCOUT: return 15000;     // 15s - Momentum Trail
+      case PlayerClass.VANGUARD: return 20000;  // 20s - Build Cover
+      case PlayerClass.MEDIC: return 12000;     // 12s - Shared Heals
+      case PlayerClass.SCAVENGER: return 25000; // 25s - Orb Team Buff
+      default: return 15000;
+    }
   }
 
   private getDefaultWeaponForClass(playerClass: PlayerClass): string {
@@ -178,12 +220,24 @@ export class Player extends Entity {
       this.relicRevealTimer -= dt * 1000;
     }
 
+    // Update dash ability
+    this.updateDash(dt);
+
+    // Update tactical ability cooldown
+    this.updateTactical(dt);
+
     // Update weapon state
     this.updateWeapon(dt);
 
-    // Apply movement
-    const effectiveSpeed = this.getEffectiveSpeed();
-    this.position = addVec2(this.position, mulVec2(this.velocity, effectiveSpeed * dt));
+    // Apply movement (dash overrides normal movement)
+    if (this.isDashing) {
+      // During dash, move in dash direction at high speed
+      const dashMoveSpeed = this.moveSpeed * this.dashSpeed;
+      this.position = addVec2(this.position, mulVec2(this.dashDirection, dashMoveSpeed * dt));
+    } else {
+      const effectiveSpeed = this.getEffectiveSpeed();
+      this.position = addVec2(this.position, mulVec2(this.velocity, effectiveSpeed * dt));
+    }
 
     // Update rotation to match aim
     this.rotation = angleVec2(this.aimDirection);
@@ -203,6 +257,135 @@ export class Player extends Entity {
     if (this.weapon.fireTimer > 0) {
       this.weapon.fireTimer -= dt * 1000;
     }
+  }
+
+  private updateDash(dt: number): void {
+    // Update active dash
+    if (this.isDashing) {
+      this.dashTimer -= dt * 1000;
+      if (this.dashTimer <= 0) {
+        this.isDashing = false;
+        this.dashTimer = 0;
+      }
+    }
+
+    // Regenerate dash charges
+    if (this.dashCharges < this.maxDashes) {
+      this.dashRegenTimer -= dt * 1000;
+      if (this.dashRegenTimer <= 0) {
+        this.dashCharges++;
+        this.dashRegenTimer = this.dashCooldown;
+      }
+    }
+  }
+
+  private updateTactical(dt: number): void {
+    // Cool down tactical
+    if (this.tacticalTimer > 0) {
+      this.tacticalTimer -= dt * 1000;
+    }
+
+    // Update active tactical effect
+    if (this.tacticalActive && this.tacticalDuration > 0) {
+      this.tacticalDuration -= dt * 1000;
+      if (this.tacticalDuration <= 0) {
+        this.tacticalActive = false;
+      }
+    }
+  }
+
+  /**
+   * Attempt to dash in the current movement direction
+   * @returns true if dash was successful
+   */
+  dash(): boolean {
+    if (this.isDashing) return false;
+    if (this.dashCharges <= 0) return false;
+    if (!this.state.isAlive) return false;
+
+    // Use a dash charge
+    this.dashCharges--;
+
+    // Start dash - use current velocity direction or aim direction if not moving
+    const moveLength = lengthVec2(this.velocity);
+    if (moveLength > 0.1) {
+      this.dashDirection = normalizeVec2(this.velocity);
+    } else {
+      this.dashDirection = normalizeVec2(this.aimDirection);
+    }
+
+    this.isDashing = true;
+    this.dashTimer = 150; // 150ms dash duration
+
+    // Start regen timer if not already running
+    if (this.dashRegenTimer <= 0) {
+      this.dashRegenTimer = this.dashCooldown;
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if dash is available
+   */
+  canDash(): boolean {
+    return this.dashCharges > 0 && !this.isDashing && this.state.isAlive;
+  }
+
+  /**
+   * Attempt to use the tactical ability
+   * @returns true if tactical was activated
+   */
+  useTactical(): boolean {
+    if (this.tacticalTimer > 0) return false;
+    if (!this.state.isAlive) return false;
+
+    // Activate tactical
+    this.tacticalTimer = this.tacticalCooldown;
+    this.tacticalActive = true;
+
+    // Set duration based on class
+    switch (this.playerClass) {
+      case PlayerClass.SCOUT:
+        // Momentum Trail - leaves speed boost trail for 5s
+        this.tacticalDuration = 5000;
+        break;
+      case PlayerClass.VANGUARD:
+        // Build Cover - instant, no duration
+        this.tacticalDuration = 0;
+        this.tacticalActive = false;
+        // TODO: Spawn cover at position
+        break;
+      case PlayerClass.MEDIC:
+        // Shared Heals - heals nearby allies for 3s
+        this.tacticalDuration = 3000;
+        break;
+      case PlayerClass.SCAVENGER:
+        // Orb Team Buff - instant orb bonus
+        this.tacticalDuration = 0;
+        this.tacticalActive = false;
+        break;
+      default:
+        this.tacticalDuration = 0;
+    }
+
+    console.log(`${this.name} used tactical ability!`);
+    return true;
+  }
+
+  /**
+   * Check if tactical ability is ready
+   */
+  isTacticalReady(): boolean {
+    return this.tacticalTimer <= 0 && this.state.isAlive;
+  }
+
+  /**
+   * Get tactical cooldown progress (0-1, 1 = ready)
+   */
+  getTacticalProgress(): number {
+    if (this.tacticalTimer <= 0) return 1;
+    return 1 - (this.tacticalTimer / this.tacticalCooldown);
   }
 
   getEffectiveSpeed(): number {

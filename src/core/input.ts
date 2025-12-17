@@ -43,6 +43,8 @@ export class InputManager {
       confirm: false,
       back: false,
       zoom: 1,
+      dash: false,
+      tactical: false,
     };
     this.touchState = {
       moveTouchId: null,
@@ -357,6 +359,12 @@ export class InputManager {
       }
     }
 
+    // Update dash (Shift key)
+    this.inputState.dash = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+
+    // Update tactical (Q key)
+    this.inputState.tactical = this.keys.has('KeyQ');
+
     // Gamepad input
     this.updateGamepad();
   }
@@ -453,6 +461,22 @@ export class InputManager {
   consumeReload(): boolean {
     if (this.inputState.isReloading) {
       this.inputState.isReloading = false;
+      return true;
+    }
+    return false;
+  }
+
+  consumeDash(): boolean {
+    if (this.inputState.dash) {
+      this.inputState.dash = false;
+      return true;
+    }
+    return false;
+  }
+
+  consumeTactical(): boolean {
+    if (this.inputState.tactical) {
+      this.inputState.tactical = false;
       return true;
     }
     return false;

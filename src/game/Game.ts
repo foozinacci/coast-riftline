@@ -464,6 +464,16 @@ export class Game {
       if (this.input.consumeInteract() || this.input.isMobileDevice()) {
         this.tryInteract(this.localPlayer);
       }
+
+      // Handle dash ability (Shift key)
+      if (this.input.consumeDash()) {
+        this.localPlayer.dash();
+      }
+
+      // Handle tactical ability (Q key)
+      if (this.input.consumeTactical()) {
+        this.localPlayer.useTactical();
+      }
     }
 
     // Update AI controllers

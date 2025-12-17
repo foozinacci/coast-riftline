@@ -241,6 +241,8 @@ export interface InputState {
   confirm: boolean;
   back: boolean;
   zoom: number;
+  dash: boolean;      // Shift key - dash ability
+  tactical: boolean;  // Q key - tactical ability
 }
 
 // Touch input tracking
