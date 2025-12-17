@@ -109,10 +109,12 @@ export class Game {
 
   // Initialize a match with voting and animation sequence
   startTestGame(mode: GameMode = GameMode.MAIN, difficulty: TrainingDifficulty = TrainingDifficulty.MEDIUM): void {
+    console.log('[Game.startTestGame] Starting game with mode:', mode, 'difficulty:', difficulty);
     this.useMenuSystem = true;
     this.mode = mode;
     this.difficulty = difficulty;
     this.phase = GamePhase.SPAWN_VOTE; // Start with voting
+    console.log('[Game.startTestGame] Set phase to SPAWN_VOTE');
 
     // Generate relic system (relics + plant sites) - Only for Main/Training with Relics
     let relics: Relic[] = [];
@@ -362,6 +364,11 @@ export class Game {
   private fixedUpdate(dt: number): void {
     const navManager = getNavigationManager();
     const currentAppState = navManager.getCurrentState();
+
+    // Debug: Log state periodically
+    if (Math.random() < 0.01) {
+      console.log('[Game.fixedUpdate] AppState:', currentAppState, 'useMenuSystem:', this.useMenuSystem, 'phase:', this.phase);
+    }
 
     // If in menu system and not in active match, let screen manager handle input
     if (this.useMenuSystem && currentAppState !== AppState.IN_MATCH) {

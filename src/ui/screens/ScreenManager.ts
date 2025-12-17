@@ -110,6 +110,8 @@ export class ScreenManager {
     }
 
     private onNavigationEvent(event: NavigationEvent): void {
+        console.log('[ScreenManager] Navigation event:', event.from, '->', event.to);
+
         // Exit current screen
         if (this.currentScreen) {
             this.currentScreen.onExit();
@@ -118,15 +120,20 @@ export class ScreenManager {
         // Enter new screen
         const newScreen = this.screens.get(event.to);
         if (newScreen) {
+            console.log('[ScreenManager] Found screen for state:', event.to);
             this.currentScreen = newScreen;
             this.currentScreen.onEnter();
         } else {
+            console.log('[ScreenManager] No screen for state:', event.to);
             this.currentScreen = null;
             // Don't redirect for game states that don't need screens
             const gameStates = [AppState.IN_MATCH];
             if (!gameStates.includes(event.to)) {
+                console.log('[ScreenManager] Redirecting to TITLE (state not in gameStates)');
                 // Fallback: redirect to TITLE screen if state not handled
                 this.navigation.forceNavigateTo(AppState.TITLE);
+            } else {
+                console.log('[ScreenManager] State is a game state, NOT redirecting');
             }
         }
     }
