@@ -12,5 +12,7 @@ export { PostMatchScreen } from './PostMatchScreen';
 export { LobbyScreen } from './LobbyScreen';
 export { CustomizeMenu } from './CustomizeMenu';
 export { ClassSelectScreen } from './ClassSelectScreen';
+export { TrainingSetup } from './TrainingSetup';
+export { PrivateMatch } from './PrivateMatch';
 export { ScreenManager } from './ScreenManager';
 export type { GameCallbacks } from './ScreenManager';

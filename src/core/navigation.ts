@@ -158,7 +158,8 @@ export class NavigationManager {
             state: AppState.PRIVATE_MATCH,
             allowedTransitions: [
                 AppState.CONNECTING,
-                AppState.CREATE_CUSTOM_GAME,
+                AppState.LOBBY,
+                AppState.IN_MATCH,
                 AppState.PLAY_MENU,
             ],
             backTarget: AppState.PLAY_MENU,

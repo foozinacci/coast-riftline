@@ -23,26 +23,22 @@ export class SettingsRoot extends BaseScreen {
             {
                 id: 'btn-gameplay',
                 label: 'GAMEPLAY',
-                onSelect: () => console.log('Gameplay settings'),
-                disabled: true,
+                onSelect: () => console.log('Gameplay settings - coming soon'),
             },
             {
                 id: 'btn-audio',
                 label: 'AUDIO',
-                onSelect: () => console.log('Audio settings'),
-                disabled: true,
+                onSelect: () => console.log('Audio settings - coming soon'),
             },
             {
                 id: 'btn-video',
                 label: 'VIDEO',
-                onSelect: () => console.log('Video settings'),
-                disabled: true,
+                onSelect: () => console.log('Video settings - coming soon'),
             },
             {
                 id: 'btn-accessibility',
                 label: 'ACCESSIBILITY',
-                onSelect: () => console.log('Accessibility settings'),
-                disabled: true,
+                onSelect: () => console.log('Accessibility settings - coming soon'),
             },
             {
                 id: 'btn-back',

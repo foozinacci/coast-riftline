@@ -18,6 +18,7 @@ import { PostMatchScreen } from './PostMatchScreen';
 import { LobbyScreen } from './LobbyScreen';
 import { CustomizeMenu } from './CustomizeMenu';
 import { ClassSelectScreen } from './ClassSelectScreen';
+import { PrivateMatch } from './PrivateMatch';
 
 import { GameMode, TrainingDifficulty } from '../../core/types';
 
@@ -49,6 +50,7 @@ export class ScreenManager {
     private postMatchScreen: PostMatchScreen;
     private lobbyScreen: LobbyScreen;
     private mainMenu: MainMenu;
+    private privateMatch: PrivateMatch;
 
     constructor(isMobile: boolean) {
         this.isMobile = isMobile;
@@ -61,6 +63,7 @@ export class ScreenManager {
         this.postMatchScreen = new PostMatchScreen();
         this.lobbyScreen = new LobbyScreen();
         this.mainMenu = new MainMenu();
+        this.privateMatch = new PrivateMatch();
 
         // Initialize all screens
         this.initializeScreens();
@@ -84,6 +87,7 @@ export class ScreenManager {
         this.screens.set(AppState.LOBBY, this.lobbyScreen);
         this.screens.set(AppState.CUSTOMIZE_MENU, new CustomizeMenu());
         this.screens.set(AppState.CLASS_SELECT, new ClassSelectScreen());
+        this.screens.set(AppState.PRIVATE_MATCH, this.privateMatch);
     }
 
     /**
