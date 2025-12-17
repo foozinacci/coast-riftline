@@ -122,8 +122,12 @@ export class ScreenManager {
             this.currentScreen.onEnter();
         } else {
             this.currentScreen = null;
-            // Fallback: redirect to TITLE screen if state not handled
-            this.navigation.forceNavigateTo(AppState.TITLE);
+            // Don't redirect for game states that don't need screens
+            const gameStates = [AppState.IN_MATCH];
+            if (!gameStates.includes(event.to)) {
+                // Fallback: redirect to TITLE screen if state not handled
+                this.navigation.forceNavigateTo(AppState.TITLE);
+            }
         }
     }
 
