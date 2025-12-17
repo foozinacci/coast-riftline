@@ -13,16 +13,19 @@ import { PauseMenu } from './PauseMenu';
 import { SettingsRoot } from './SettingsRoot';
 import { ControlsMenu } from './ControlsMenu';
 import { QuickPlaySetup } from './QuickPlaySetup';
+import { TrainingSetup } from './TrainingSetup';
 import { PostMatchScreen } from './PostMatchScreen';
 import { LobbyScreen } from './LobbyScreen';
 import { CustomizeMenu } from './CustomizeMenu';
 import { ClassSelectScreen } from './ClassSelectScreen';
 
+import { GameMode, TrainingDifficulty } from '../../core/types';
+
 /**
  * Callbacks for game integration.
  */
 export interface GameCallbacks {
-    startGame: () => void;
+    startGame: (mode?: GameMode, difficulty?: TrainingDifficulty) => void;
     resetGame: () => void;
 }
 
@@ -36,10 +39,16 @@ export class ScreenManager {
     private currentScreen: BaseScreen | null = null;
     private isMobile: boolean;
 
+    // Navigation cooldown for gamepad/keyboard stick inputs
+    private lastFocusTime: number = 0;
+    private readonly FOCUS_COOLDOWN_MS = 200;
+
     // Typed screen references for setting callbacks
     private quickPlaySetup: QuickPlaySetup;
+    private trainingSetup: TrainingSetup;
     private postMatchScreen: PostMatchScreen;
     private lobbyScreen: LobbyScreen;
+    private mainMenu: MainMenu;
 
     constructor(isMobile: boolean) {
         this.isMobile = isMobile;
@@ -48,8 +57,10 @@ export class ScreenManager {
 
         // Create screen instances
         this.quickPlaySetup = new QuickPlaySetup();
+        this.trainingSetup = new TrainingSetup();
         this.postMatchScreen = new PostMatchScreen();
         this.lobbyScreen = new LobbyScreen();
+        this.mainMenu = new MainMenu();
 
         // Initialize all screens
         this.initializeScreens();
@@ -61,8 +72,10 @@ export class ScreenManager {
     private initializeScreens(): void {
         // Register all screens
         this.screens.set(AppState.TITLE, new TitleScreen());
-        this.screens.set(AppState.MAIN_MENU, new MainMenu());
+        this.mainMenu = new MainMenu();
+        this.screens.set(AppState.MAIN_MENU, this.mainMenu);
         this.screens.set(AppState.PLAY_MENU, new PlayMenu());
+        this.screens.set(AppState.TRAINING_SETUP, this.trainingSetup);
         this.screens.set(AppState.PAUSE_MENU, new PauseMenu());
         this.screens.set(AppState.SETTINGS_ROOT, new SettingsRoot());
         this.screens.set(AppState.CONTROLS_MENU, new ControlsMenu());
@@ -77,9 +90,12 @@ export class ScreenManager {
      * Set game callbacks for starting/resetting matches.
      */
     setGameCallbacks(callbacks: GameCallbacks): void {
-        this.quickPlaySetup.setStartGameCallback(callbacks.startGame);
-        this.postMatchScreen.setReplayCallback(callbacks.startGame);
-        this.lobbyScreen.setStartMatchCallback(callbacks.startGame);
+        this.quickPlaySetup.setStartGameCallback((mode, difficulty) => callbacks.startGame(mode, difficulty));
+        this.trainingSetup.setStartTrainingCallback((mode, difficulty) => callbacks.startGame(mode, difficulty));
+        this.postMatchScreen.setReplayCallback(() => callbacks.startGame());
+        this.lobbyScreen.setStartMatchCallback(() => callbacks.startGame());
+        // MainMenu Training button now navigates to training setup
+        this.mainMenu.setStartTrainingCallback(() => this.navigation.navigateTo(AppState.TRAINING_SETUP));
     }
 
     /**
@@ -142,14 +158,25 @@ export class ScreenManager {
             this.currentScreen.handleBack();
         }
 
-        // Handle focus navigation via keyboard (with cooldown to prevent rapid scrolling)
+        // Handle focus navigation via keyboard/gamepad (with cooldown)
         const inputState = input.getState();
-        const threshold = 0.7;
+        const threshold = 0.5; // Lower threshold slightly for better feel
+        const now = performance.now();
 
-        if (inputState.moveDirection.y < -threshold) {
-            this.currentScreen.navigateFocus('up');
-        } else if (inputState.moveDirection.y > threshold) {
-            this.currentScreen.navigateFocus('down');
+        if (now - this.lastFocusTime > this.FOCUS_COOLDOWN_MS) {
+            if (inputState.moveDirection.y < -threshold) {
+                this.currentScreen.navigateFocus('up');
+                this.lastFocusTime = now;
+            } else if (inputState.moveDirection.y > threshold) {
+                this.currentScreen.navigateFocus('down');
+                this.lastFocusTime = now;
+            }
+        }
+
+        // Handle mouse focus
+        const mousePos = input.getMousePosition();
+        if (mousePos && this.currentScreen) {
+            this.currentScreen.handleMouseMove(mousePos.x, mousePos.y);
         }
     }
 

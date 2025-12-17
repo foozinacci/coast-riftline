@@ -1,20 +1,19 @@
-// Relic entity - the main objective
-
 import { Entity } from './Entity';
-import { EntityType } from '../core/types';
+import { EntityType, RelicState as CoreRelicState } from '../core/types';
 import { RELIC_CONFIG, COLORS } from '../core/constants';
 import { Renderer } from '../core/renderer';
 
-export enum RelicState {
-  SPAWNED = 'spawned',
-  CARRIED = 'carried',
-  DROPPED = 'dropped',
-  DELIVERED = 'delivered',
-}
+export { CoreRelicState as RelicState };
 
 export class Relic extends Entity {
-  state: RelicState;
+  state: CoreRelicState;
   carrierId: string | null;
+  spawnPosition: { x: number; y: number };
+  plantSiteId: string;
+  plantProgress: number;
+  planterId: string | null;
+
+  // Visuals
   revealTimer: number;
   isRevealed: boolean;
   dropDecayTimer: number;
@@ -22,8 +21,13 @@ export class Relic extends Entity {
   constructor(x: number, y: number) {
     super(EntityType.RELIC, x, y);
 
-    this.state = RelicState.SPAWNED;
+    this.state = CoreRelicState.AVAILABLE; // Using Core enum
     this.carrierId = null;
+    this.spawnPosition = { x, y };
+    this.plantSiteId = '';
+    this.plantProgress = 0;
+    this.planterId = null;
+
     this.radius = 20;
     this.revealTimer = RELIC_CONFIG.revealInterval;
     this.isRevealed = false;
@@ -31,7 +35,7 @@ export class Relic extends Entity {
   }
 
   update(dt: number): void {
-    if (this.state === RelicState.CARRIED) {
+    if (this.state === CoreRelicState.CARRIED) {
       // Handle periodic reveal
       this.revealTimer -= dt * 1000;
       if (this.revealTimer <= 0) {
@@ -45,34 +49,34 @@ export class Relic extends Entity {
       }
     }
 
-    if (this.state === RelicState.DROPPED) {
+    if (this.state === CoreRelicState.AVAILABLE && this.dropDecayTimer > 0) {
       this.dropDecayTimer -= dt * 1000;
       // Relic doesn't decay, just waits to be picked up
     }
   }
 
   pickup(playerId: string): void {
-    this.state = RelicState.CARRIED;
+    this.state = CoreRelicState.CARRIED;
     this.carrierId = playerId;
     this.revealTimer = RELIC_CONFIG.revealInterval;
   }
 
   drop(x: number, y: number): void {
-    this.state = RelicState.DROPPED;
+    this.state = CoreRelicState.AVAILABLE;
     this.carrierId = null;
     this.position = { x, y };
     this.dropDecayTimer = 30000; // 30 seconds before auto-respawn consideration
   }
 
   deliver(): void {
-    this.state = RelicState.DELIVERED;
+    this.state = CoreRelicState.PLANTED;
     this.carrierId = null;
-    this.isActive = false;
+    // this.isActive = false; // logic changed: planted relics might stay active for rings
   }
 
   render(renderer: Renderer): void {
-    if (this.state === RelicState.CARRIED || this.state === RelicState.DELIVERED) {
-      return; // Don't render if carried or delivered
+    if (this.state === CoreRelicState.CARRIED || this.state === CoreRelicState.PLANTED) {
+      return; // Don't render if carried or planted
     }
 
     const pos = this.position;

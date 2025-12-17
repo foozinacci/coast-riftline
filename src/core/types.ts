@@ -35,6 +35,7 @@ export enum AppState {
   // Main menu and navigation
   MAIN_MENU = 'main_menu',
   PLAY_MENU = 'play_menu',
+  TRAINING_SETUP = 'training_setup',
   QUICK_PLAY_SETUP = 'quick_play_setup',
   CUSTOM_GAME_BROWSER = 'custom_game_browser',
   CREATE_CUSTOM_GAME = 'create_custom_game',
@@ -101,20 +102,46 @@ export enum RiftlinePhase {
   CONVERGENCE = 'convergence',
 }
 
+// Game Modes (Finalized)
+export enum GameMode {
+  MAIN = 'main',
+  ARENA_1V1 = 'arena_1v1',
+  ARENA_1V1V1 = 'arena_1v1v1',
+  ARENA_3V3 = 'arena_3v3',
+  ARENA_3V3V3 = 'arena_3v3v3',
+  TRAINING = 'training',
+}
+
+// Training Difficulty
+export enum TrainingDifficulty {
+  EASY = 'easy',
+  MEDIUM = 'medium',
+  HARD = 'hard',
+}
+
+// Match Structure
+export enum MatchStructure {
+  SINGLE_MATCH = 'single_match',
+  BEST_OF_3 = 'best_of_3',
+  BEST_OF_5 = 'best_of_5',
+}
+
 // Player classes
+// Player classes (Refactored)
 export enum PlayerClass {
+  SCOUT = 'scout',
   VANGUARD = 'vanguard',
-  SKIRMISHER = 'skirmisher',
-  SENTINEL = 'sentinel',
-  CATALYST = 'catalyst',
+  MEDIC = 'medic',
+  SCAVENGER = 'scavenger',
 }
 
 // Weapon archetypes
+// Weapon archetypes (Refactored)
 export enum WeaponType {
   AUTOMATIC = 'automatic',
-  BURST = 'burst',
   SEMI_AUTO = 'semi_auto',
-  UTILITY = 'utility',
+  CHARGE = 'charge',
+  BURST = 'burst',
 }
 
 // Item rarity levels
@@ -144,6 +171,7 @@ export enum EntityType {
   DELIVERY_SITE = 'delivery_site',
   RESPAWN_ORB = 'respawn_orb',
   OBSTACLE = 'obstacle',
+  COVER = 'cover', // Vanguard cover
 }
 
 // Class configuration
@@ -153,25 +181,28 @@ export interface ClassConfig {
   description: string;
   baseHealth: number;
   baseShield: number;
-  moveSpeed: number;
-  preferredRange: 'close' | 'mid' | 'long' | 'utility';
-  weaponType: WeaponType;
-  proximityBonus: number;
+  moveSpeed: number; // Raw pixels per second
+  dashes: number;
+  passiveDescription: string;
+  tacticalDescription: string;
+  tacticalParameter: string;
 }
 
 // Weapon configuration
 export interface WeaponConfig {
+  id: string; // e.g., 'auto_common'
   name: string;
   type: WeaponType;
-  damage: number;
-  fireRate: number;
+  rarity: Rarity;
+  damage: number; // Fixed across rarities
   magazineSize: number;
-  reloadTime: number;
+  fireRate: number; // Bullets per second
+  reloadTime: number; // ms
   range: number;
-  spread: number;
   projectileSpeed: number;
+  chargeTime?: number; // ms, for Charge weapons
   burstCount?: number;
-  inventorySize: { width: number; height: number };
+  burstDelay?: number; // ms
 }
 
 // Backpack configuration
@@ -258,6 +289,11 @@ export interface GameConfig {
   respawnBaseCooldown: number;
   wipeTimerDuration: number;
   riftlinePhases: RiftlinePhaseConfig[];
+  // Mode specific overrides
+  mode: GameMode;
+  difficulty?: TrainingDifficulty; // For training
+  structure: MatchStructure;
+  roundsToWin: number;
 }
 
 export interface RiftlinePhaseConfig {
@@ -303,3 +339,223 @@ export interface FocusState {
   focusableElements: string[];
   focusHistory: Map<AppState, string>;
 }
+
+// ============================================================================
+// CORE GAME SYSTEMS (Per Game Systems Spec)
+// ============================================================================
+
+/**
+ * World Node - A location on the map that can be a spawn or relic site
+ */
+export interface WorldNode {
+  id: string;
+  position: Vector2;
+  type: 'spawn' | 'relic' | 'vault' | 'campfire';
+  isActive: boolean;
+}
+
+/**
+ * Spawn Location - A team spawn with two sub-positions
+ */
+export interface SpawnLocation {
+  id: string;
+  position: Vector2;
+  aSideOffset: Vector2;
+  bSideOffset: Vector2;
+  assignedTeams: string[]; // Max 2
+  maxTeams: 2;
+}
+
+/**
+ * Spawn Vote - Team's vote for a spawn location
+ */
+export interface SpawnVote {
+  squadId: string;
+  locationId: string;
+  votes: Map<string, string>; // playerId -> locationId
+  finalChoice: string | null;
+  deadline: number; // timestamp
+}
+
+/**
+ * Relic - Core objective item
+ */
+export interface Relic {
+  id: string;
+  position: Vector2;
+  spawnPosition: Vector2;
+  plantSiteId: string; // Valid plant location
+  state: RelicState;
+  carrierId: string | null;
+  plantProgress: number; // 0-1 (1 = planted)
+  planterId: string | null;
+}
+
+export enum RelicState {
+  SPAWNING = 'spawning',
+  AVAILABLE = 'available',
+  CARRIED = 'carried',
+  PLANTING = 'planting',
+  PLANTED = 'planted',
+}
+
+/**
+ * Relic Plant Site - Where relics can be planted
+ */
+export interface RelicPlantSite {
+  id: string;
+  position: Vector2;
+  radius: number;
+  linkedRelicId: string | null;
+  hasPlantedRelic: boolean;
+  safeZoneRadius: number; // Creates a ring when relic planted
+  safeZoneActive: boolean;
+}
+
+/**
+ * Vault - Final objective
+ */
+export interface Vault {
+  id: string;
+  position: Vector2;
+  radius: number;
+  isRevealed: boolean;
+  isOpen: boolean;
+  safeZoneRadius: number;
+  winningSquadId: string | null;
+}
+
+/**
+ * Campfire - Healing station
+ */
+export interface Campfire {
+  id: string;
+  position: Vector2;
+  radius: number;
+  healRate: number; // HP per second (shields first, then health)
+  isActive: boolean;
+}
+
+/**
+ * Respawn Beacon - Emergency instant respawn item
+ */
+export interface RespawnBeacon {
+  id: string;
+  position: Vector2;
+  squadId: string;
+  isUsed: boolean;
+  respawnDelay: number; // Faster than normal cooldown
+}
+
+/**
+ * Respawn Orb - Reduces respawn cooldown
+ */
+export interface RespawnOrb {
+  id: string;
+  position: Vector2;
+  value: number; // Cooldown reduction in seconds
+  spawnTime: number;
+  expiresAt: number;
+  collectedBy: string | null;
+}
+
+/**
+ * Player Healing State - For passive healing tracking
+ */
+export interface HealingState {
+  lastDamageTaken: number; // timestamp
+  lastDamageDealt: number;
+  lastActionTime: number; // firing, abilities
+  isPassiveHealingActive: boolean;
+  healingPerSecond: number;
+}
+
+/**
+ * Relic Ring - Safe zone created by planted relic
+ */
+export interface RelicRing {
+  id: string;
+  plantSiteId: string;
+  position: Vector2;
+  currentRadius: number;
+  maxRadius: number;
+  shrinkRate: number;
+  decayStartTime: number | null;
+  isDecaying: boolean;
+}
+
+/**
+ * Progressive Riftline State - Escalation based on planted relics
+ */
+export interface RiftlineEscalation {
+  relicsPlanted: number;
+  globalShrinkMultiplier: number;
+  stormDamageMultiplier: number;
+  respawnCooldownMultiplier: number;
+  relicRingsDecaying: boolean;
+}
+
+/**
+ * Pre-game Animation State
+ */
+export interface PreGameAnimation {
+  phase: 'idle' | 'panning_to_relics' | 'showing_relics' | 'returning' | 'complete';
+  currentRelicIndex: number;
+  animationProgress: number; // 0-1
+  cameraTarget: Vector2;
+}
+
+/**
+ * Match State - Complete game state
+ */
+export interface MatchState {
+  phase: GamePhase;
+  timeRemaining: number;
+
+  // Spawns
+  spawnLocations: SpawnLocation[];
+  spawnVotes: Map<string, SpawnVote>;
+
+  // Relics & Objectives
+  relics: Relic[];
+  plantSites: RelicPlantSite[];
+  relicRings: RelicRing[];
+  vault: Vault | null;
+
+  // Support Objects
+  campfires: Campfire[];
+  respawnBeacons: RespawnBeacon[];
+  respawnOrbs: RespawnOrb[];
+
+  // Riftline (Storm)
+  riftlineEscalation: RiftlineEscalation;
+  globalRiftlineRadius: number;
+  globalRiftlineCenter: Vector2;
+
+  // Animation
+  preGameAnimation: PreGameAnimation;
+}
+
+/**
+ * Plant interaction state for a player
+ */
+export interface PlantInteraction {
+  isPlanting: boolean;
+  plantStartTime: number;
+  targetSiteId: string | null;
+  progress: number; // 0-1
+}
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+export const PLANT_DURATION_MS = 5000; // 5 seconds to plant
+export const PASSIVE_HEAL_DELAY_MS = 2500; // 2.5 seconds before healing starts
+export const PASSIVE_HEAL_RATE = 5; // HP per second
+export const CAMPFIRE_HEAL_RATE = 15; // HP per second (shields first)
+export const ORB_LIFETIME_MS = 30000; // Orbs expire after 30 seconds
+export const ORB_BASE_VALUE = 3; // Seconds reduced from respawn cooldown
+export const SPAWN_VOTE_DURATION_MS = 15000; // 15 seconds to vote
+export const RELIC_CARRIER_SPEED_PENALTY = 0.3; // 30% speed reduction
+

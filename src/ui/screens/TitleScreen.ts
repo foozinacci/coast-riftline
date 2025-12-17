@@ -10,6 +10,7 @@ export class TitleScreen extends BaseScreen {
     private animationTime: number = 0;
     private logoImage: HTMLImageElement | null = null;
     private logoLoaded: boolean = false;
+    private logoLoadFailed: boolean = false;
 
     constructor() {
         super(AppState.TITLE);
@@ -25,6 +26,7 @@ export class TitleScreen extends BaseScreen {
         };
         img.onerror = () => {
             console.warn('Failed to load logo image');
+            this.logoLoadFailed = true;
         };
         img.src = LOGO_URL;
     }
@@ -52,7 +54,7 @@ export class TitleScreen extends BaseScreen {
         const titleY = screenHeight * 0.30;
         const pulseScale = 1 + Math.sin(this.animationTime * 2) * 0.02;
 
-        // Render logo image if loaded, otherwise text
+        // Render logo image if loaded, otherwise text fallback (only if load failed)
         if (this.logoLoaded && this.logoImage) {
             const logoWidth = 200 * pulseScale;
             const logoHeight = 200 * pulseScale;
@@ -67,8 +69,8 @@ export class TitleScreen extends BaseScreen {
                     ctx2d.drawImage(this.logoImage, logoX, logoY, logoWidth, logoHeight);
                 }
             }
-        } else {
-            // Fallback to text
+        } else if (this.logoLoadFailed) {
+            // Only show text fallback if logo failed to load
             renderer.drawScreenText(
                 'RIFTLINE',
                 screenWidth / 2,
@@ -79,6 +81,7 @@ export class TitleScreen extends BaseScreen {
                 'middle'
             );
         }
+        // If still loading, show nothing (prevents flash)
 
         // Tagline
         const taglineY = this.logoLoaded ? titleY + 120 : titleY + 60;

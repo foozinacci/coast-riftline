@@ -2,10 +2,10 @@
 // Spec B.10: Pre-match lobby with player list and ready state
 
 import { BaseScreen, ScreenContext } from './BaseScreen';
-import { AppState, ModalType } from '../../core/types';
+import { AppState, ModalType, GameMode, TrainingDifficulty } from '../../core/types';
 
 // Callback type for starting the match
-type StartMatchCallback = () => void;
+type StartMatchCallback = (mode?: GameMode, difficulty?: TrainingDifficulty) => void;
 
 interface LobbyPlayer {
     id: string;
@@ -20,6 +20,8 @@ export class LobbyScreen extends BaseScreen {
     private isHost: boolean = false;
     private startMatchCallback: StartMatchCallback | null = null;
     private animationTime: number = 0;
+    private mode: GameMode = GameMode.MAIN;
+    private difficulty: TrainingDifficulty = TrainingDifficulty.MEDIUM;
 
     constructor() {
         super(AppState.LOBBY);
@@ -36,6 +38,11 @@ export class LobbyScreen extends BaseScreen {
 
     setStartMatchCallback(callback: StartMatchCallback): void {
         this.startMatchCallback = callback;
+    }
+
+    setMatchConfig(mode: GameMode, difficulty: TrainingDifficulty): void {
+        this.mode = mode;
+        this.difficulty = difficulty;
     }
 
     onEnter(): void {
@@ -62,7 +69,7 @@ export class LobbyScreen extends BaseScreen {
                 label: 'START MATCH',
                 onSelect: () => {
                     if (this.startMatchCallback) {
-                        this.startMatchCallback();
+                        this.startMatchCallback(this.mode, this.difficulty);
                         this.navigation.forceNavigateTo(AppState.IN_MATCH);
                     }
                 },

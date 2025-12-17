@@ -100,6 +100,7 @@ export class NavigationManager {
             state: AppState.MAIN_MENU,
             allowedTransitions: [
                 AppState.PLAY_MENU,
+                AppState.TRAINING_SETUP,
                 AppState.CUSTOMIZE_MENU,
                 AppState.SETTINGS_ROOT,
                 AppState.EXIT_CONFIRM,
@@ -114,6 +115,7 @@ export class NavigationManager {
                 AppState.QUICK_PLAY_SETUP,
                 AppState.CUSTOM_GAME_BROWSER,
                 AppState.PRIVATE_MATCH,
+                AppState.MATCHMAKING,
                 AppState.MAIN_MENU,
             ],
             backTarget: AppState.MAIN_MENU,
@@ -122,8 +124,15 @@ export class NavigationManager {
         // 6) QUICK PLAY SETUP
         map.set(AppState.QUICK_PLAY_SETUP, {
             state: AppState.QUICK_PLAY_SETUP,
-            allowedTransitions: [AppState.MATCHMAKING, AppState.PLAY_MENU],
+            allowedTransitions: [AppState.MATCHMAKING, AppState.PLAY_MENU, AppState.IN_MATCH],
             backTarget: AppState.PLAY_MENU,
+        });
+
+        // 6b) TRAINING SETUP
+        map.set(AppState.TRAINING_SETUP, {
+            state: AppState.TRAINING_SETUP,
+            allowedTransitions: [AppState.IN_MATCH, AppState.MAIN_MENU],
+            backTarget: AppState.MAIN_MENU,
         });
 
         // 7) CUSTOM GAME BROWSER
@@ -499,6 +508,13 @@ export class NavigationManager {
      */
     setFocus(elementId: string): void {
         this.focusState.currentFocusId = elementId;
+    }
+
+    /**
+     * Alias for setFocus to match BaseScreen usage.
+     */
+    focusElement(elementId: string): void {
+        this.setFocus(elementId);
     }
 
     /**

@@ -18,6 +18,13 @@ interface ClassInfo {
 
 const CLASS_INFO: ClassInfo[] = [
     {
+        class: PlayerClass.SCOUT,
+        name: 'SCOUT',
+        description: 'High mobility flanker who leads the team',
+        stats: { health: 3, speed: 5, damage: 3 },
+        color: 'rgba(100, 255, 200, 1)',
+    },
+    {
         class: PlayerClass.VANGUARD,
         name: 'VANGUARD',
         description: 'Front-line tank with high survivability',
@@ -25,25 +32,18 @@ const CLASS_INFO: ClassInfo[] = [
         color: 'rgba(100, 180, 255, 1)',
     },
     {
-        class: PlayerClass.SKIRMISHER,
-        name: 'SKIRMISHER',
-        description: 'Agile fighter with burst damage',
-        stats: { health: 3, speed: 5, damage: 4 },
-        color: 'rgba(255, 180, 100, 1)',
-    },
-    {
-        class: PlayerClass.SENTINEL,
-        name: 'SENTINEL',
-        description: 'Support class with protective abilities',
-        stats: { health: 4, speed: 3, damage: 2 },
+        class: PlayerClass.MEDIC,
+        name: 'MEDIC',
+        description: 'Support class with healing abilities',
+        stats: { health: 3, speed: 3, damage: 2 },
         color: 'rgba(100, 255, 180, 1)',
     },
     {
-        class: PlayerClass.CATALYST,
-        name: 'CATALYST',
-        description: 'Utility specialist with area control',
-        stats: { health: 2, speed: 4, damage: 5 },
-        color: 'rgba(255, 100, 180, 1)',
+        class: PlayerClass.SCAVENGER,
+        name: 'SCAVENGER',
+        description: 'Resource specialist with utility focus',
+        stats: { health: 3, speed: 4, damage: 3 },
+        color: 'rgba(255, 200, 100, 1)',
     },
 ];
 

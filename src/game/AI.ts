@@ -1,6 +1,6 @@
 // AI Bot System - for testing and single player
 
-import { Vector2, PlayerClass } from '../core/types';
+import { Vector2, PlayerClass, TrainingDifficulty } from '../core/types';
 import {
   distanceVec2,
   subVec2,
@@ -44,21 +44,42 @@ export class AIController {
   private targetPosition: Vector2 | null;
   private targetEnemy: Player | null;
   private stateTimer: number;
+  private nextDecisionTime: number;
   private reactionTime: number;
   private accuracy: number;
   private aggressiveness: number;
+  private coordination: number; // 0-1, likelihood of sticking to team/objectives
 
-  constructor(player: Player, difficulty: number = 0.5) {
+  constructor(player: Player, difficulty: TrainingDifficulty = TrainingDifficulty.MEDIUM) {
     this.player = player;
     this.state = AIState.IDLE;
     this.targetPosition = null;
     this.targetEnemy = null;
+    this.targetEnemy = null;
     this.stateTimer = 0;
+    this.nextDecisionTime = 0;
 
-    // Difficulty affects AI parameters
-    this.reactionTime = 500 - difficulty * 300; // 500ms to 200ms
-    this.accuracy = 0.3 + difficulty * 0.5; // 30% to 80%
-    this.aggressiveness = 0.3 + difficulty * 0.4;
+    // Tune AI based on difficulty spec
+    switch (difficulty) {
+      case TrainingDifficulty.EASY:
+        this.reactionTime = 800; // Slow
+        this.accuracy = 0.2; // Poor
+        this.aggressiveness = 0.2; // Passive
+        this.coordination = 0.1; // Minimal
+        break;
+      case TrainingDifficulty.MEDIUM:
+        this.reactionTime = 400; // Normal
+        this.accuracy = 0.5; // Decent
+        this.aggressiveness = 0.5; // Balanced
+        this.coordination = 0.5; // Loose
+        break;
+      case TrainingDifficulty.HARD:
+        this.reactionTime = 150; // Fast
+        this.accuracy = 0.85; // Strong
+        this.aggressiveness = 0.9; // High pressure
+        this.coordination = 0.9; // Focus fire/Flanking logic enabled
+        break;
+    }
   }
 
   update(dt: number, context: AIContext): { fire: boolean; reload: boolean } {
@@ -71,8 +92,12 @@ export class AIController {
       return result;
     }
 
-    // Check for state transitions
-    this.evaluateState(context);
+    // Check for state transitions (throttled by reaction time)
+    this.nextDecisionTime -= dtMs;
+    if (this.nextDecisionTime <= 0) {
+      this.evaluateState(context);
+      this.nextDecisionTime = this.reactionTime * (0.8 + Math.random() * 0.4); // Add variance
+    }
 
     // Execute current state behavior
     switch (this.state) {
@@ -162,7 +187,7 @@ export class AIController {
 
     // Priority 5: Collect relics
     const availableRelic = context.relics.find(
-      r => r.state === RelicState.SPAWNED || r.state === RelicState.DROPPED
+      r => r.state === RelicState.AVAILABLE
     );
     if (availableRelic && distanceVec2(pos, availableRelic.position) < 600) {
       this.state = AIState.COLLECTING_RELIC;
@@ -380,13 +405,13 @@ export class AIController {
   private getOptimalRange(): number {
     switch (this.player.playerClass) {
       case PlayerClass.VANGUARD:
-        return 150;
-      case PlayerClass.SKIRMISHER:
-        return 300;
-      case PlayerClass.SENTINEL:
-        return 500;
-      case PlayerClass.CATALYST:
-        return 250;
+        return 150; // Use SMG range
+      case PlayerClass.SCOUT:
+        return 250; // Flanker
+      case PlayerClass.MEDIC:
+        return 400; // Mid range
+      case PlayerClass.SCAVENGER:
+        return 300; // Burst range
       default:
         return 300;
     }

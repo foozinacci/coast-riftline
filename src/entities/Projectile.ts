@@ -49,14 +49,19 @@ export class Projectile extends Entity {
   }
 
   render(renderer: Renderer): void {
-    // Draw projectile trail
-    const trailLength = 12;
+    // Draw projectile glow (larger, semi-transparent)
+    renderer.drawCircle(this.position, 12, 'rgba(255, 255, 100, 0.3)');
+
+    // Draw projectile trail (thick yellow line)
+    const trailLength = 40;
     const trailStart = addVec2(
       this.position,
       mulVec2(this.direction, -trailLength)
     );
 
-    renderer.drawLine(trailStart, this.position, '#ffff88', 2);
-    renderer.drawCircle(this.position, this.radius, '#ffffff');
+    renderer.drawLine(trailStart, this.position, '#ffff00', 4);
+
+    // Draw projectile core (bright white)
+    renderer.drawCircle(this.position, 6, '#ffffff');
   }
 }

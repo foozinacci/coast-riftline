@@ -286,4 +286,22 @@ export abstract class BaseScreen {
             ctx.fill();
         }
     }
+    /**
+     * Update focus based on mouse position.
+     */
+    handleMouseMove(x: number, y: number): void {
+        for (const element of this.focusableElements) {
+            if (
+                x >= element.x &&
+                x <= element.x + element.width &&
+                y >= element.y &&
+                y <= element.y + element.height
+            ) {
+                if (!element.disabled) {
+                    this.navigation.focusElement(element.id);
+                }
+                return;
+            }
+        }
+    }
 }

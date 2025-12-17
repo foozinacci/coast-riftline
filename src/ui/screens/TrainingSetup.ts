@@ -1,19 +1,18 @@
-// Quick Play Setup Screen
-// Spec B.6: Find Match options before matchmaking
+// Training Setup Screen
+// Solo offline practice for all game modes
 
 import { BaseScreen, ScreenContext } from './BaseScreen';
-import { AppState } from '../../core/types';
+import { AppState, GameMode, TrainingDifficulty } from '../../core/types';
 
-import { GameMode, TrainingDifficulty, MatchStructure } from '../../core/types';
+// Callback type for starting training
+type StartTrainingCallback = (mode: GameMode, difficulty: TrainingDifficulty) => void;
 
-// Callback type for starting the game with config
-type StartGameCallback = (mode: GameMode, difficulty?: TrainingDifficulty) => void;
-
-export class QuickPlaySetup extends BaseScreen {
-    private startGameCallback: StartGameCallback | null = null;
+export class TrainingSetup extends BaseScreen {
+    private startTrainingCallback: StartTrainingCallback | null = null;
     private selectedMode: GameMode = GameMode.MAIN;
     private selectedDifficulty: TrainingDifficulty = TrainingDifficulty.MEDIUM;
-    private selectedStructure: MatchStructure = MatchStructure.BEST_OF_3;
+
+    // All modes available for training (offline practice)
     private modes: GameMode[] = [
         GameMode.MAIN,
         GameMode.ARENA_1V1,
@@ -21,10 +20,7 @@ export class QuickPlaySetup extends BaseScreen {
         GameMode.ARENA_3V3,
         GameMode.ARENA_3V3V3,
     ];
-    private structures: MatchStructure[] = [
-        MatchStructure.BEST_OF_3,
-        MatchStructure.BEST_OF_5,
-    ];
+
     private difficulties: TrainingDifficulty[] = [
         TrainingDifficulty.EASY,
         TrainingDifficulty.MEDIUM,
@@ -32,25 +28,19 @@ export class QuickPlaySetup extends BaseScreen {
     ];
 
     constructor() {
-        super(AppState.QUICK_PLAY_SETUP);
+        super(AppState.TRAINING_SETUP);
     }
 
-    /**
-     * Set the callback to start the actual game.
-     */
-    setStartGameCallback(callback: StartGameCallback): void {
-        this.startGameCallback = callback;
+    setStartTrainingCallback(callback: StartTrainingCallback): void {
+        this.startTrainingCallback = callback;
     }
 
     onEnter(): void {
-        this.clearButtons(); // Force re-setup of buttons to ensure clean state
+        this.clearButtons();
         super.onEnter();
     }
 
     private setupButtons(ctx: ScreenContext): void {
-        // Build button list based on selected mode
-        const isArenaMode = this.selectedMode !== GameMode.MAIN;
-
         this.layoutButtonsVertical([
             {
                 id: 'btn-mode',
@@ -59,20 +49,9 @@ export class QuickPlaySetup extends BaseScreen {
                     const idx = this.modes.indexOf(this.selectedMode);
                     const nextIdx = (idx + 1) % this.modes.length;
                     this.selectedMode = this.modes[nextIdx];
-                    this.clearButtons();
+                    this.clearButtons(); // Rebuild to update labels
                 },
             },
-            // Structure selector only for Arena modes
-            ...(isArenaMode ? [{
-                id: 'btn-structure',
-                label: `FORMAT: ${this.getStructureLabel(this.selectedStructure)}`,
-                onSelect: () => {
-                    const idx = this.structures.indexOf(this.selectedStructure);
-                    const nextIdx = (idx + 1) % this.structures.length;
-                    this.selectedStructure = this.structures[nextIdx];
-                    this.refreshButtonLabel('btn-structure', `FORMAT: ${this.getStructureLabel(this.selectedStructure)}`);
-                },
-            }] : []),
             {
                 id: 'btn-difficulty',
                 label: `BOT DIFFICULTY: ${this.selectedDifficulty.toUpperCase()}`,
@@ -85,10 +64,10 @@ export class QuickPlaySetup extends BaseScreen {
             },
             {
                 id: 'btn-start',
-                label: 'START MATCH',
+                label: 'START TRAINING',
                 onSelect: () => {
-                    if (this.startGameCallback) {
-                        this.startGameCallback(this.selectedMode, this.selectedDifficulty);
+                    if (this.startTrainingCallback) {
+                        this.startTrainingCallback(this.selectedMode, this.selectedDifficulty);
                         this.navigation.forceNavigateTo(AppState.IN_MATCH);
                     }
                 },
@@ -98,7 +77,7 @@ export class QuickPlaySetup extends BaseScreen {
                 label: 'BACK',
                 onSelect: () => this.navigation.goBack(),
             },
-        ], ctx, ctx.screenHeight * 0.30);
+        ], ctx, ctx.screenHeight * 0.35);
     }
 
     private getModeLabel(mode: GameMode): string {
@@ -109,14 +88,6 @@ export class QuickPlaySetup extends BaseScreen {
             case GameMode.ARENA_3V3: return "ARENA 3v3";
             case GameMode.ARENA_3V3V3: return "ARENA 3v3v3";
             default: return mode;
-        }
-    }
-
-    private getStructureLabel(structure: MatchStructure): string {
-        switch (structure) {
-            case MatchStructure.BEST_OF_3: return "BEST OF 3";
-            case MatchStructure.BEST_OF_5: return "BEST OF 5";
-            default: return "SINGLE MATCH";
         }
     }
 
@@ -136,17 +107,18 @@ export class QuickPlaySetup extends BaseScreen {
         renderer.drawScreenRect(0, 0, screenWidth, screenHeight, 'rgba(15, 18, 25, 1)');
 
         // Title
-        this.renderTitle(ctx, 'QUICK PLAY');
-        this.renderSubtitle(ctx, 'Jump into a match');
+        this.renderTitle(ctx, 'TRAINING');
+        this.renderSubtitle(ctx, 'Practice offline against bots');
 
         // Render buttons
         this.renderButtons(ctx);
 
-        // Match info
+        // Mode description
+        const modeDescription = this.getModeDescription(this.selectedMode);
         renderer.drawScreenText(
-            '10 Teams • 3 Players Each • Last Squad Standing',
+            modeDescription,
             screenWidth / 2,
-            screenHeight - 80,
+            screenHeight - 100,
             'rgba(120, 140, 160, 1)',
             14,
             'center',
@@ -163,6 +135,23 @@ export class QuickPlaySetup extends BaseScreen {
             'center',
             'middle'
         );
+    }
+
+    private getModeDescription(mode: GameMode): string {
+        switch (mode) {
+            case GameMode.MAIN:
+                return "10 Squads • 3 Players Each • Collect & Plant Relics";
+            case GameMode.ARENA_1V1:
+                return "1v1 Duel • Pure Elimination";
+            case GameMode.ARENA_1V1V1:
+                return "Free-for-All • Last Player Standing";
+            case GameMode.ARENA_3V3:
+                return "Team vs Team • Round-Based";
+            case GameMode.ARENA_3V3V3:
+                return "3-Way Team Battle • High Chaos";
+            default:
+                return "";
+        }
     }
 
     handleBack(): void {

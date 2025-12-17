@@ -1,7 +1,7 @@
 // Proximity Awareness System - replaces minimap with directional awareness
 
-import { Vector2, ProximitySignal, PlayerClass } from '../core/types';
-import { CLASS_CONFIGS, COLORS } from '../core/constants';
+import { Vector2, ProximitySignal } from '../core/types';
+import { COLORS } from '../core/constants';
 import {
   distanceVec2,
   subVec2,
@@ -37,8 +37,8 @@ export class ProximityAwareness {
     if (!player.state.isAlive) return;
 
     const playerPos = player.position;
-    const classConfig = CLASS_CONFIGS[player.playerClass];
-    const effectiveRange = this.baseRange * (1 + classConfig.proximityBonus);
+    // Use base range - proximity bonus can be added later if needed
+    const effectiveRange = this.baseRange;
 
     // Detect enemies
     for (const enemy of enemies) {

@@ -1,7 +1,7 @@
 // Map generation and management system
 
-import { Vector2 } from '../core/types';
-import { GAME_CONFIG, MAP_CONFIG } from '../core/constants';
+import { Vector2, RelicPlantSite } from '../core/types';
+import { GAME_CONFIG, MAP_CONFIG, COLORS } from '../core/constants';
 import { distanceVec2, randomRange } from '../core/utils';
 import { SpawnSite } from '../entities/SpawnSite';
 import { DeliverySite } from '../entities/DeliverySite';
@@ -26,6 +26,7 @@ export class GameMap {
   deliverySite: DeliverySite;
   obstacles: Obstacle[];
   relics: Relic[];
+  plantSites: RelicPlantSite[];
   loot: Loot[];
 
   constructor() {
@@ -33,7 +34,10 @@ export class GameMap {
     this.height = GAME_CONFIG.mapHeight;
     this.spawnSites = [];
     this.obstacles = [];
+    this.spawnSites = [];
+    this.obstacles = [];
     this.relics = [];
+    this.plantSites = [];
     this.loot = [];
 
     // Generate map
@@ -266,6 +270,19 @@ export class GameMap {
     for (const relic of this.relics) {
       if (relic.isActive) {
         relic.render(renderer);
+      }
+    }
+
+    // Render plant sites
+    for (const site of this.plantSites) {
+      // Draw site circle
+      renderer.drawCircle(site.position, site.radius, '#112233', '#44ff44', 2);
+
+      // Draw label
+      if (site.hasPlantedRelic) {
+        renderer.drawText('PLANTED', site.position, '#44ff44', 12);
+      } else {
+        renderer.drawText('PLANT HERE', site.position, '#aaaaaa', 10);
       }
     }
   }

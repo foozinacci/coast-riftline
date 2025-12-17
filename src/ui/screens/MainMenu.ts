@@ -4,11 +4,36 @@
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { AppState } from '../../core/types';
 
+const LOGO_URL = 'https://i.ibb.co/VYbnBQjD/ei-1765901346915-removebg-preview.png';
+
 export class MainMenu extends BaseScreen {
     private animationTime: number = 0;
+    private logoImage: HTMLImageElement | null = null;
+    private logoLoaded: boolean = false;
+    private logoLoadFailed: boolean = false;
+    private startTrainingCallback: (() => void) | null = null;
 
     constructor() {
         super(AppState.MAIN_MENU);
+        this.loadLogo();
+    }
+
+    setStartTrainingCallback(callback: () => void): void {
+        this.startTrainingCallback = callback;
+    }
+
+    private loadLogo(): void {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            this.logoImage = img;
+            this.logoLoaded = true;
+        };
+        img.onerror = () => {
+            console.warn('Failed to load logo image in MainMenu');
+            this.logoLoadFailed = true;
+        };
+        img.src = LOGO_URL;
     }
 
     onEnter(): void {
@@ -27,10 +52,11 @@ export class MainMenu extends BaseScreen {
                 id: 'btn-training',
                 label: 'TRAINING',
                 onSelect: () => {
-                    // TODO: Training mode - for now, start test game directly
-                    console.log('Training mode - starting test game');
+                    // Navigate to training setup (callback is wired in ScreenManager)
+                    if (this.startTrainingCallback) {
+                        this.startTrainingCallback();
+                    }
                 },
-                disabled: true, // Not implemented yet
             },
             {
                 id: 'btn-customize',
@@ -74,16 +100,34 @@ export class MainMenu extends BaseScreen {
         // Background grid effect
         this.renderBackgroundGrid(ctx);
 
-        // Title
-        renderer.drawScreenText(
-            'RIFTLINE',
-            screenWidth / 2,
-            screenHeight * 0.15,
-            'rgba(100, 200, 255, 1)',
-            48,
-            'center',
-            'middle'
-        );
+        // Logo / Title
+        const titleY = screenHeight * 0.15;
+        if (this.logoLoaded && this.logoImage) {
+            const logoSize = 100; // Slightly larger since it's the only branding
+            const logoX = screenWidth / 2 - logoSize / 2;
+            const logoY = titleY - logoSize / 2;
+
+            const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+            if (canvas) {
+                const ctx2d = canvas.getContext('2d');
+                if (ctx2d) {
+                    ctx2d.drawImage(this.logoImage, logoX, logoY, logoSize, logoSize);
+                }
+            }
+            // Logo only - no text needed
+        } else if (this.logoLoadFailed) {
+            // Only show text fallback if logo actually failed to load (not during loading)
+            renderer.drawScreenText(
+                'RIFTLINE',
+                screenWidth / 2,
+                titleY,
+                'rgba(100, 200, 255, 1)',
+                48,
+                'center',
+                'middle'
+            );
+        }
+        // If still loading, show nothing (prevents flash)
 
         // Render buttons
         this.renderButtons(ctx);

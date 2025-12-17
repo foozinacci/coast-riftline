@@ -9,6 +9,9 @@ import {
   WeaponConfig,
   BackpackConfig,
   GameConfig,
+  GameMode,
+  MatchStructure,
+  Rarity, // Added Rarity
 } from './types';
 
 // Core game configuration
@@ -43,162 +46,227 @@ export const GAME_CONFIG: GameConfig = {
       respawnEfficiency: 0.4,
     },
   ],
+  // Default game mode settings
+  mode: GameMode.MAIN,
+  structure: MatchStructure.SINGLE_MATCH,
+  roundsToWin: 1,
 };
 
 // Class configurations
+// Class configurations
 export const CLASS_CONFIGS: Record<PlayerClass, ClassConfig> = {
+  [PlayerClass.SCOUT]: {
+    name: 'Scout',
+    class: PlayerClass.SCOUT,
+    description: 'High mobility flanker who leads the team',
+    baseHealth: 75,
+    baseShield: 50,
+    moveSpeed: 350, // Fast
+    dashes: 3,
+    passiveDescription: 'Momentum Trail (Speed Boost)',
+    tacticalDescription: 'Momentum Trail',
+    tacticalParameter: 'Trail Length/Width',
+  },
   [PlayerClass.VANGUARD]: {
     name: 'Vanguard',
     class: PlayerClass.VANGUARD,
-    description: 'Close-range specialist with high survivability',
-    baseHealth: 125,
+    description: 'Tanky defender who builds cover',
+    baseHealth: 100,
+    baseShield: 125,
+    moveSpeed: 250, // Slow
+    dashes: 2,
+    passiveDescription: '5% Damage Reduction',
+    tacticalDescription: 'Build/Repair Cover (35 HP)',
+    tacticalParameter: 'Build Range',
+  },
+  [PlayerClass.MEDIC]: {
+    name: 'Medic',
+    class: PlayerClass.MEDIC,
+    description: 'Support healer who shares sustainability',
+    baseHealth: 100,
     baseShield: 75,
-    moveSpeed: 280,
-    preferredRange: 'close',
-    weaponType: WeaponType.AUTOMATIC,
-    proximityBonus: 0.3, // better awareness at close range
+    moveSpeed: 300, // Medium
+    dashes: 2,
+    passiveDescription: '50% Faster Consumables',
+    tacticalDescription: 'Shared Heals',
+    tacticalParameter: 'Heal Radius',
   },
-  [PlayerClass.SKIRMISHER]: {
-    name: 'Skirmisher',
-    class: PlayerClass.SKIRMISHER,
-    description: 'Balanced fighter with burst damage',
-    baseHealth: 100,
-    baseShield: 50,
-    moveSpeed: 300,
-    preferredRange: 'mid',
-    weaponType: WeaponType.BURST,
-    proximityBonus: 0.2,
-  },
-  [PlayerClass.SENTINEL]: {
-    name: 'Sentinel',
-    class: PlayerClass.SENTINEL,
-    description: 'Long-range specialist with early detection',
+  [PlayerClass.SCAVENGER]: {
+    name: 'Scavenger',
+    class: PlayerClass.SCAVENGER,
+    description: 'Resource specialist with team buffs',
     baseHealth: 75,
-    baseShield: 50,
-    moveSpeed: 290,
-    preferredRange: 'long',
-    weaponType: WeaponType.SEMI_AUTO,
-    proximityBonus: 0.5, // best detection range
-  },
-  [PlayerClass.CATALYST]: {
-    name: 'Catalyst',
-    class: PlayerClass.CATALYST,
-    description: 'Economy-focused support with utility',
-    baseHealth: 100,
-    baseShield: 50,
-    moveSpeed: 310,
-    preferredRange: 'utility',
-    weaponType: WeaponType.UTILITY,
-    proximityBonus: 0.25,
+    baseShield: 75,
+    moveSpeed: 300, // Medium
+    dashes: 2,
+    passiveDescription: 'Static Respawn & Orb Buffs',
+    tacticalDescription: 'Orb Team Buff',
+    tacticalParameter: 'Effect Radius',
   },
 };
 
 // Weapon configurations
+// Weapon configurations
 export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
-  // Automatic weapons (Vanguard)
-  'smg-standard': {
-    name: 'Vector SMG',
+  // --- AUTOMATIC (Light) ---
+  'auto_common': {
+    id: 'auto_common',
+    name: 'Auto Rifle (Common)',
     type: WeaponType.AUTOMATIC,
-    damage: 12,
-    fireRate: 12,
+    rarity: Rarity.COMMON,
+    damage: 5,
     magazineSize: 30,
-    reloadTime: 1800,
-    range: 400,
-    spread: 8,
-    projectileSpeed: 1200,
-    inventorySize: { width: 2, height: 1 },
-  },
-  'shotgun-spread': {
-    name: 'Scattergun',
-    type: WeaponType.AUTOMATIC,
-    damage: 8,
-    fireRate: 2,
-    magazineSize: 6,
-    reloadTime: 2200,
-    range: 200,
-    spread: 25,
-    projectileSpeed: 900,
-    inventorySize: { width: 2, height: 1 },
-  },
-
-  // Burst weapons (Skirmisher)
-  'rifle-burst': {
-    name: 'Pulse Rifle',
-    type: WeaponType.BURST,
-    damage: 18,
-    fireRate: 5,
-    magazineSize: 24,
-    reloadTime: 2000,
-    range: 600,
-    spread: 4,
-    projectileSpeed: 1400,
-    burstCount: 3,
-    inventorySize: { width: 3, height: 1 },
-  },
-  'pistol-burst': {
-    name: 'Triad Pistol',
-    type: WeaponType.BURST,
-    damage: 14,
-    fireRate: 6,
-    magazineSize: 18,
-    reloadTime: 1500,
-    range: 450,
-    spread: 5,
-    projectileSpeed: 1300,
-    burstCount: 3,
-    inventorySize: { width: 1, height: 1 },
-  },
-
-  // Semi-auto weapons (Sentinel)
-  'rifle-marksman': {
-    name: 'Longshot',
-    type: WeaponType.SEMI_AUTO,
-    damage: 45,
-    fireRate: 1.5,
-    magazineSize: 8,
+    fireRate: 8, // "Slow"
     reloadTime: 2500,
-    range: 1000,
-    spread: 1,
-    projectileSpeed: 2000,
-    inventorySize: { width: 4, height: 1 },
+    range: 400, // Short
+    projectileSpeed: 800,
   },
-  'rifle-scout': {
-    name: 'Scout Rifle',
-    type: WeaponType.SEMI_AUTO,
-    damage: 28,
-    fireRate: 3,
-    magazineSize: 12,
+  'auto_uncommon': {
+    id: 'auto_uncommon',
+    name: 'Auto Rifle (Uncommon)',
+    type: WeaponType.AUTOMATIC,
+    rarity: Rarity.UNCOMMON,
+    damage: 5,
+    magazineSize: 30,
+    fireRate: 10, // "Medium"
     reloadTime: 2000,
-    range: 700,
-    spread: 2,
-    projectileSpeed: 1600,
-    inventorySize: { width: 3, height: 1 },
+    range: 600, // Medium
+    projectileSpeed: 900,
+  },
+  'auto_rare': {
+    id: 'auto_rare',
+    name: 'Auto Rifle (Rare)',
+    type: WeaponType.AUTOMATIC,
+    rarity: Rarity.RARE,
+    damage: 5,
+    magazineSize: 30,
+    fireRate: 12, // "Fast"
+    reloadTime: 1500,
+    range: 600, // Medium
+    projectileSpeed: 1000,
   },
 
-  // Utility weapons (Catalyst)
-  'launcher-support': {
-    name: 'Flux Launcher',
-    type: WeaponType.UTILITY,
-    damage: 25,
-    fireRate: 1,
-    magazineSize: 4,
-    reloadTime: 3000,
-    range: 500,
-    spread: 0,
-    projectileSpeed: 600,
-    inventorySize: { width: 3, height: 2 },
+  // --- SEMI (Medium) ---
+  'semi_common': {
+    id: 'semi_common',
+    name: 'DMR (Common)',
+    type: WeaponType.SEMI_AUTO,
+    rarity: Rarity.COMMON,
+    damage: 12,
+    magazineSize: 12,
+    fireRate: 3, // "Slow"
+    reloadTime: 2200,
+    range: 600, // Medium
+    projectileSpeed: 1200,
   },
-  'pistol-drain': {
-    name: 'Siphon',
-    type: WeaponType.UTILITY,
+  'semi_uncommon': {
+    id: 'semi_uncommon',
+    name: 'DMR (Uncommon)',
+    type: WeaponType.SEMI_AUTO,
+    rarity: Rarity.UNCOMMON,
+    damage: 12,
+    magazineSize: 12,
+    fireRate: 4, // "Medium"
+    reloadTime: 1800,
+    range: 800, // Long
+    projectileSpeed: 1400,
+  },
+  'semi_rare': {
+    id: 'semi_rare',
+    name: 'DMR (Rare)',
+    type: WeaponType.SEMI_AUTO,
+    rarity: Rarity.RARE,
+    damage: 12,
+    magazineSize: 12,
+    fireRate: 5, // "Fast"
+    reloadTime: 1400,
+    range: 800, // Long
+    projectileSpeed: 1600,
+  },
+
+  // --- CHARGE (Heavy) ---
+  'charge_common': {
+    id: 'charge_common',
+    name: 'Railgun (Common)',
+    type: WeaponType.CHARGE,
+    rarity: Rarity.COMMON,
+    damage: 50,
+    magazineSize: 3,
+    fireRate: 0.5, // N/A due to charge, but effectively slow
+    reloadTime: 3500,
+    range: 600, // Medium
+    projectileSpeed: 2000,
+    chargeTime: 2000,
+  },
+  'charge_uncommon': {
+    id: 'charge_uncommon',
+    name: 'Railgun (Uncommon)',
+    type: WeaponType.CHARGE,
+    rarity: Rarity.UNCOMMON,
+    damage: 50,
+    magazineSize: 3,
+    fireRate: 0.6,
+    reloadTime: 2800,
+    range: 800, // Long
+    projectileSpeed: 2500,
+    chargeTime: 1500,
+  },
+  'charge_rare': {
+    id: 'charge_rare',
+    name: 'Railgun (Rare)',
+    type: WeaponType.CHARGE,
+    rarity: Rarity.RARE,
+    damage: 50,
+    magazineSize: 3,
+    fireRate: 1.0,
+    reloadTime: 2000,
+    range: 1200, // Very Long
+    projectileSpeed: 3000,
+    chargeTime: 1000,
+  },
+
+  // --- BURST (Medium) ---
+  'burst_common': {
+    id: 'burst_common',
+    name: 'Burst Rifle (Common)',
+    type: WeaponType.BURST,
+    rarity: Rarity.COMMON,
     damage: 10,
+    magazineSize: 15, // 5 bursts * 3
+    fireRate: 2, // bursts per second roughly (delay driven)
+    reloadTime: 2400,
+    range: 400, // Short
+    projectileSpeed: 900,
+    burstCount: 3,
+    burstDelay: 300, // Slow delay
+  },
+  'burst_uncommon': {
+    id: 'burst_uncommon',
+    name: 'Burst Rifle (Uncommon)',
+    type: WeaponType.BURST,
+    rarity: Rarity.UNCOMMON,
+    damage: 10,
+    magazineSize: 15,
+    fireRate: 3,
+    reloadTime: 1900,
+    range: 600, // Medium
+    projectileSpeed: 1000,
+    burstCount: 3,
+    burstDelay: 200, // Medium delay
+  },
+  'burst_rare': {
+    id: 'burst_rare',
+    name: 'Burst Rifle (Rare)',
+    type: WeaponType.BURST,
+    rarity: Rarity.RARE,
+    damage: 10,
+    magazineSize: 15,
     fireRate: 4,
-    magazineSize: 20,
-    reloadTime: 1600,
-    range: 350,
-    spread: 6,
+    reloadTime: 1400,
+    range: 800, // Long
     projectileSpeed: 1100,
-    inventorySize: { width: 1, height: 1 },
+    burstCount: 3,
+    burstDelay: 100, // Fast delay
   },
 };
 
@@ -231,11 +299,12 @@ export const BACKPACK_CONFIGS: Record<BackpackTier, BackpackConfig> = {
 };
 
 // Default loadouts per class
+// Default loadouts per class (Starting with Common)
 export const DEFAULT_LOADOUTS: Record<PlayerClass, { weapon: string }> = {
-  [PlayerClass.VANGUARD]: { weapon: 'smg-standard' },
-  [PlayerClass.SKIRMISHER]: { weapon: 'rifle-burst' },
-  [PlayerClass.SENTINEL]: { weapon: 'rifle-scout' },
-  [PlayerClass.CATALYST]: { weapon: 'pistol-drain' },
+  [PlayerClass.SCOUT]: { weapon: 'auto_common' },
+  [PlayerClass.VANGUARD]: { weapon: 'auto_common' },
+  [PlayerClass.MEDIC]: { weapon: 'semi_common' },
+  [PlayerClass.SCAVENGER]: { weapon: 'burst_common' },
 };
 
 // Relic configuration

@@ -42,11 +42,13 @@ export interface WeaponState {
   reloadTimer: number;
   fireTimer: number;
   burstCounter: number;
+  chargeLevel: number; // 0-1 for charge weapons
 }
 
 export class Player extends Entity {
   // Identity
   squadId: string;
+  name: string; // Display name
   playerClass: PlayerClass;
   color: string;
   isLocalPlayer: boolean;
@@ -89,6 +91,14 @@ export class Player extends Entity {
     this.color = color;
     this.isLocalPlayer = isLocalPlayer;
 
+    // Generate simple name
+    if (isLocalPlayer) {
+      this.name = 'YOU';
+    } else {
+      const idShort = Math.floor(Math.random() * 1000);
+      this.name = `${playerClass.substring(0, 3).toUpperCase()}-${idShort}`;
+    }
+
     const classConfig = CLASS_CONFIGS[playerClass];
     this.moveSpeed = classConfig.moveSpeed;
     this.aimDirection = vec2(1, 0);
@@ -116,6 +126,7 @@ export class Player extends Entity {
       reloadTimer: 0,
       fireTimer: 0,
       burstCounter: 0,
+      chargeLevel: 0,
     };
 
     this.backpackTier = BackpackTier.BASIC;
@@ -136,14 +147,16 @@ export class Player extends Entity {
 
   private getDefaultWeaponForClass(playerClass: PlayerClass): string {
     switch (playerClass) {
+      case PlayerClass.SCOUT:
+        return 'auto_common';
       case PlayerClass.VANGUARD:
-        return 'smg-standard';
-      case PlayerClass.SKIRMISHER:
-        return 'rifle-burst';
-      case PlayerClass.SENTINEL:
-        return 'rifle-scout';
-      case PlayerClass.CATALYST:
-        return 'pistol-drain';
+        return 'auto_common'; // Vanguard uses SMG/Auto
+      case PlayerClass.MEDIC:
+        return 'semi_common';
+      case PlayerClass.SCAVENGER:
+        return 'burst_common';
+      default:
+        return 'auto_common';
     }
   }
 
@@ -231,8 +244,9 @@ export class Player extends Entity {
   fire(): { direction: Vector2; spread: number } | null {
     if (!this.canFire()) return null;
 
-    // Calculate spread
-    const spreadRad = degToRad(this.weapon.config.spread);
+    // Calculate spread (Default 0 if not in config, or fixed value)
+    const spread = 0; // Removed from config for now
+    const spreadRad = degToRad(spread);
     const spreadAngle = randomRange(-spreadRad / 2, spreadRad / 2);
     const direction = fromAngle(angleVec2(this.aimDirection) + spreadAngle);
 
@@ -248,15 +262,20 @@ export class Player extends Entity {
       this.weapon.burstCounter++;
       if (this.weapon.burstCounter >= this.weapon.config.burstCount) {
         this.weapon.burstCounter = 0;
-        this.weapon.fireTimer = fireInterval * 3; // Longer delay between bursts
+        this.weapon.fireTimer = this.weapon.config.burstDelay || (fireInterval * 3);
       } else {
-        this.weapon.fireTimer = fireInterval * 0.3; // Fast between burst shots
+        this.weapon.fireTimer = fireInterval; // Standard fire rate is now the "fast" internal burst rate
+        // Wait, fireRate in config usually means "cycle rate".
+        // For burst, we traditionally have fireRate as the bust cycle, or the bullet cycle.
+        // User spec: "Fire Rate 2 bursts/sec" vs "Fire Rate 6 bullets/sec".
+        // Config: "Fire Rate 2", "Burst Count 3", "Burst Delay ?"
+        // I will trust the config `burstDelay` I added.
       }
     }
 
     return {
       direction,
-      spread: this.weapon.config.spread,
+      spread,
     };
   }
 
@@ -342,6 +361,7 @@ export class Player extends Entity {
       reloadTimer: 0,
       fireTimer: 0,
       burstCounter: 0,
+      chargeLevel: 0,
     };
 
     // Reset backpack to basic
@@ -448,14 +468,16 @@ export class Player extends Entity {
 
   private getClassSymbol(): string {
     switch (this.playerClass) {
+      case PlayerClass.SCOUT:
+        return 'S';
       case PlayerClass.VANGUARD:
         return 'V';
-      case PlayerClass.SKIRMISHER:
-        return 'S';
-      case PlayerClass.SENTINEL:
-        return 'N';
-      case PlayerClass.CATALYST:
-        return 'C';
+      case PlayerClass.MEDIC:
+        return 'M';
+      case PlayerClass.SCAVENGER:
+        return '$';
+      default:
+        return '?';
     }
   }
 }

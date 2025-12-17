@@ -9,9 +9,31 @@ import { RiftlineState } from '../systems/Riftline';
 
 export class HUD {
   private showTouchControls: boolean;
+  private enableKillFeed: boolean = true;
+  private notifications: { id: number; text: string; color: string; timestamp: number }[] = [];
+  private notificationCounter: number = 0;
 
   constructor(isMobile: boolean) {
     this.showTouchControls = isMobile;
+  }
+
+  setKillFeedEnabled(enabled: boolean): void {
+    this.enableKillFeed = enabled;
+  }
+
+  addNotification(text: string, color: string = '#ffffff'): void {
+    const id = this.notificationCounter++;
+    this.notifications.push({
+      id,
+      text,
+      color,
+      timestamp: Date.now(),
+    });
+
+    // Keep max 5
+    if (this.notifications.length > 5) {
+      this.notifications.shift();
+    }
   }
 
   render(
@@ -51,6 +73,11 @@ export class HUD {
         this.renderTouchControls(renderer, screen);
       }
     }
+
+    // Render Notifications (Kill Feed)
+    if (this.enableKillFeed) {
+      this.renderNotifications(renderer, screen);
+    }
   }
 
   private renderGameInfo(
@@ -59,6 +86,27 @@ export class HUD {
     gamePhase: GamePhase,
     aliveSquads: number
   ): void {
+    // Render Pause Button (Top Left)
+    const btnSize = 40;
+    const btnX = 30;
+    const btnY = 30;
+
+    renderer.drawScreenRect(
+      btnX - btnSize / 2,
+      btnY - btnSize / 2,
+      btnSize,
+      btnSize,
+      'rgba(0, 0, 0, 0.5)',
+      'rgba(255, 255, 255, 0.3)',
+      1
+    );
+
+    // Draw Pause Bars "||"
+    const barW = 4;
+    const barH = 14;
+    renderer.drawScreenRect(btnX - 5, btnY - barH / 2, barW, barH, '#ffffff');
+    renderer.drawScreenRect(btnX + 1, btnY - barH / 2, barW, barH, '#ffffff');
+
     const x = screen.x / 2;
     const y = 20;
 
@@ -583,5 +631,48 @@ export class HUD {
       'center',
       'middle'
     );
+  }
+
+  private renderNotifications(
+    renderer: Renderer,
+    screen: { x: number; y: number }
+  ): void {
+    const startX = screen.x - 20;
+    const startY = 80; // Below Relic Counter
+    const lineHeight = 20;
+    const now = Date.now();
+    const fadeDuration = 500; // ms
+    const displayDuration = 5000; // ms
+
+    // Filter old
+    this.notifications = this.notifications.filter(n => now - n.timestamp < displayDuration + fadeDuration);
+
+    this.notifications.forEach((note, index) => {
+      const age = now - note.timestamp;
+      let alpha = 1;
+
+      // Fade in
+      if (age < 200) {
+        alpha = age / 200;
+      }
+      // Fade out
+      else if (age > displayDuration) {
+        alpha = 1 - (age - displayDuration) / fadeDuration;
+      }
+
+      if (alpha <= 0) return;
+
+      const y = startY + index * lineHeight;
+
+      renderer.drawScreenText(
+        note.text,
+        startX,
+        y,
+        colorWithAlpha(note.color, alpha),
+        12,
+        'right',
+        'top'
+      );
+    });
   }
 }

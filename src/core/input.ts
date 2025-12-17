@@ -26,6 +26,12 @@ export class InputManager {
   private readonly TAP_MAX_DURATION = 300; // ms
   private readonly TAP_MAX_DISTANCE = 20; // pixels
 
+  // Pause button zone
+  private readonly pauseButtonRect = { x: 30, y: 30, size: 40 };
+
+  // Gamepad state
+  private prevGamepadButtons: boolean[] = [];
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.inputState = {
@@ -127,6 +133,12 @@ export class InputManager {
 
   private onMouseDown(e: MouseEvent): void {
     if (e.button === 0) {
+      // Check pause button (Top Left)
+      if (this.isPointInButton(this.mousePosition.x, this.mousePosition.y, this.pauseButtonRect.x, this.pauseButtonRect.y, this.pauseButtonRect.size)) {
+        this.inputState.back = true;
+        return;
+      }
+
       this.mouseDown = true;
       this.inputState.isFiring = true;
       this.inputState.confirm = true;
@@ -196,6 +208,12 @@ export class InputManager {
       if (this.isPointInButton(x, y, buttonX, zoomOutY, buttonSize)) {
         this.inputState.zoom = Math.max(0.5, this.inputState.zoom - 0.15);
         return; // Consume this touch for zoom
+      }
+
+      // Check pause button (Top Left)
+      if (this.isPointInButton(x, y, this.pauseButtonRect.x, this.pauseButtonRect.y, this.pauseButtonRect.size)) {
+        this.inputState.back = true;
+        return;
       }
 
       // Left side = movement joystick
@@ -335,6 +353,58 @@ export class InputManager {
       if (delta.x !== 0 || delta.y !== 0) {
         this.inputState.aimDirection = normalizeVec2(delta);
       }
+    }
+
+    // Gamepad input
+    this.updateGamepad();
+  }
+
+  private updateGamepad(): void {
+    const gamepads = navigator.getGamepads();
+    const gp = gamepads[0]; // Use first gamepad
+    if (!gp) return;
+
+    // Movement (Left Stick)
+    const moveX = gp.axes[0];
+    const moveY = gp.axes[1];
+    const DEADZONE = 0.2;
+
+    if (Math.abs(moveX) > DEADZONE || Math.abs(moveY) > DEADZONE) {
+      this.inputState.moveDirection = normalizeVec2({ x: moveX, y: moveY });
+    }
+
+    // Aiming (Right Stick)
+    const aimX = gp.axes[2];
+    const aimY = gp.axes[3];
+    if (Math.abs(aimX) > DEADZONE || Math.abs(aimY) > DEADZONE) {
+      this.inputState.aimDirection = normalizeVec2({ x: aimX, y: aimY });
+    }
+
+    // Buttons (using simplified mapping for standard Xbox controller)
+    // 0: A (Confirm), 1: B (Back), 2: X (Interact), 3: Y (Reload)
+    // 7: RT (Fire), 9: Start (Pause)
+
+    // Helper to check press (once) vs hold
+    const isPressed = (idx: number) => gp.buttons[idx] && gp.buttons[idx].pressed;
+    const justPressed = (idx: number) => isPressed(idx) && !this.prevGamepadButtons[idx];
+
+    if (justPressed(0)) this.inputState.confirm = true; // A
+    if (justPressed(1)) this.inputState.back = true;    // B
+    if (justPressed(2)) this.inputState.interact = true; // X
+    if (justPressed(3)) this.inputState.isReloading = true; // Y
+    if (justPressed(9)) this.inputState.back = true;    // Start
+
+    // Continuous states (Fire)
+    if (isPressed(7)) {
+      this.inputState.isFiring = true;
+    } else if (!this.mouseDown && !this.touchState.aimTouchId) {
+      // Only clear if mouse/touch aren't firing
+      this.inputState.isFiring = false;
+    }
+
+    // Update previous state
+    for (let i = 0; i < gp.buttons.length; i++) {
+      this.prevGamepadButtons[i] = gp.buttons[i].pressed;
     }
   }
 

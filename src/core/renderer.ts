@@ -123,8 +123,18 @@ export class Renderer {
     strokeColor?: string,
     strokeWidth: number = 2
   ): void {
+    // Validate inputs to prevent canvas errors
+    if (!isFinite(worldPos.x) || !isFinite(worldPos.y) || !isFinite(radius) || radius <= 0) {
+      return;
+    }
+
     const screen = this.worldToScreen(worldPos);
     const scaledRadius = radius * this.camera.zoom;
+
+    // Extra validation after transform
+    if (!isFinite(screen.x) || !isFinite(screen.y) || !isFinite(scaledRadius) || scaledRadius <= 0) {
+      return;
+    }
 
     this.ctx.beginPath();
     this.ctx.arc(screen.x, screen.y, scaledRadius, 0, Math.PI * 2);
@@ -325,8 +335,18 @@ export class Renderer {
     color: string,
     intensity: number = 0.5
   ): void {
+    // Validate inputs to prevent canvas errors
+    if (!isFinite(worldPos.x) || !isFinite(worldPos.y) || !isFinite(radius) || radius <= 0) {
+      return;
+    }
+
     const screen = this.worldToScreen(worldPos);
     const scaledRadius = radius * this.camera.zoom;
+
+    // Extra validation after transform
+    if (!isFinite(screen.x) || !isFinite(screen.y) || !isFinite(scaledRadius) || scaledRadius <= 0) {
+      return;
+    }
 
     const gradient = this.ctx.createRadialGradient(
       screen.x,

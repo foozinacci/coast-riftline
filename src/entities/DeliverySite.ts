@@ -45,6 +45,8 @@ export class DeliverySite extends Entity {
   }
 
   render(renderer: Renderer): void {
+    if (!this.isVaultOpen) return; // Hidden until all relics delivered
+
     const pos = this.position;
 
     // Vault glow

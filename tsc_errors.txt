@@ -1,0 +1,4 @@
+﻿src/systems/ProximityAwareness.ts(41,62): error TS2339: Property 'proximityBonus' does not exist on type 'ClassConfig'.
+src/ui/screens/ClassSelectScreen.ts(28,28): error TS2339: Property 'SKIRMISHER' does not exist on type 'typeof PlayerClass'.
+src/ui/screens/ClassSelectScreen.ts(35,28): error TS2339: Property 'SENTINEL' does not exist on type 'typeof PlayerClass'.
+src/ui/screens/ClassSelectScreen.ts(42,28): error TS2339: Property 'CATALYST' does not exist on type 'typeof PlayerClass'.
