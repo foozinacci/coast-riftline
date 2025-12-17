@@ -19,7 +19,7 @@ import { Projectile } from '../entities/Projectile';
 import { Relic } from '../entities/Relic'; // Entity Class
 import { RelicState, RelicPlantSite } from '../core/types'; // Interfaces/Enums
 import { RespawnOrb } from '../entities/RespawnOrb';
-import { GameMap, Riftline, ProximityAwareness, SquadManager, SpawnVotingManager, generateSpawnLocations, PreGameAnimationManager, RelicManager, generateRelicSystem } from '../systems';
+import { GameMap, Riftline, ProximityAwareness, SquadManager, SpawnVotingManager, generateSpawnLocations, PreGameAnimationManager, RelicManager, generateRelicSystem, VaultManager } from '../systems';
 import { HUD } from '../ui/HUD';
 import { ScreenManager } from '../ui/screens';
 import { AIController } from './AI';
@@ -40,6 +40,7 @@ export class Game {
   private spawnVotingManager: SpawnVotingManager | null;
   private preGameAnimManager: PreGameAnimationManager;
   private relicManager: RelicManager;
+  private vaultManager: VaultManager | null = null;
 
   // Game state
   private phase: GamePhase;
@@ -150,30 +151,36 @@ export class Game {
     // HUD setup
     this.hud = new HUD(this.input.isMobileDevice());
 
+    // Initialize vault manager for Main mode
+    if (this.modeConfig.hasVault) {
+      this.vaultManager = new VaultManager(GAME_CONFIG.mapWidth, GAME_CONFIG.mapHeight);
+      this.vaultManager.setOnVaultSpawn((position) => {
+        this.hud.addNotification('VAULT REVEALED! GET TO THE ZONE!', '#ffd700');
+        // Trigger riftline convergence on vault
+        this.riftline.forceConvergence(position);
+      });
+    }
+
     // Relic Planted Callback
     this.relicManager.setOnRelicPlanted((relicId) => {
-      const relic = relics.find(r => r.id === relicId);
-      // Who planted?
-      // Relic doesn't store planter AFTER planting in `state=PLANTED`?
-      // Ah, `updatePlanting` changes state to PLANTED and clears planterId.
-      // But `relic.planterId` is cleared AFTER callback? 
-      // No, `updatePlanting` calls `onRelicPlanted` AT THE END.
-      // I should check `RelicManager.ts`. 
-      // `updatePlanting`: 
-      // 1. Sets state PLANTED. 
-      // 2. Clears carrierId. (Planter ID is used during planting).
-      // 3. Calls `onRelicPlanted`.
-      // So `relic.planterId` might be null?
-      // Let's verify. `RelicManager.ts` line 186 clears carrierId. `planterId` is separate.
-      // `RelicManager` doesn't seem to clear `planterId` immediately?
-      // Actually line 222 (cancel) clears it.
-      // Line 185 (complete) doesn't clear `planterId`.
-      // So I can read it!
       const r = this.relicManager.getRelics().find(r => r.id === relicId);
       if (r && r.planterId) {
         const planter = this.squadManager.getPlayer(r.planterId);
         const name = planter ? planter.name : 'Unknown';
         this.hud.addNotification(`${name} planted a Relic!`, '#44ff44');
+      }
+
+      // Check if all relics are planted (vault trigger)
+      if (this.modeConfig.hasVault && this.vaultManager) {
+        const plantedCount = this.relicManager.getPlantedCount();
+        const totalRelics = this.modeConfig.relicsToTriggerVault;
+
+        if (plantedCount >= totalRelics && !this.vaultManager.isActive()) {
+          // All relics planted - spawn vault!
+          console.log(`All ${totalRelics} relics planted! Spawning vault...`);
+          const vaultPos = this.vaultManager.spawnVault();
+          this.vaultManager.revealVault();
+        }
       }
     });
 
@@ -877,6 +884,11 @@ export class Game {
       for (const ring of this.relicManager.getRelicRings()) {
         // Draw safe zone
         this.renderer.drawCircle(ring.position, ring.currentRadius, 'rgba(100, 255, 100, 0.1)', '#44ff44', 2);
+      }
+
+      // Render Vault (if active)
+      if (this.vaultManager && this.vaultManager.isActive()) {
+        this.vaultManager.render(this.renderer);
       }
 
       // Render players

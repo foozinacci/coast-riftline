@@ -13,3 +13,4 @@ export * from './RiftlineEscalation';
 export * from './HealingSystem';
 export * from './RespawnSystem';
 export * from './PreGameAnimation';
+export * from './VaultSystem';
