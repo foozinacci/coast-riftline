@@ -87,9 +87,13 @@ export class QuickPlaySetup extends BaseScreen {
                 id: 'btn-start',
                 label: 'START MATCH',
                 onSelect: () => {
+                    console.log('[QuickPlaySetup] START pressed, callback exists:', !!this.startGameCallback);
                     if (this.startGameCallback) {
+                        console.log('[QuickPlaySetup] Calling startGame with mode:', this.selectedMode);
                         this.startGameCallback(this.selectedMode, this.selectedDifficulty);
+                        console.log('[QuickPlaySetup] Navigating to IN_MATCH');
                         this.navigation.forceNavigateTo(AppState.IN_MATCH);
+                        console.log('[QuickPlaySetup] Navigation complete');
                     }
                 },
             },
