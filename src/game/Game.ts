@@ -1083,6 +1083,7 @@ export class Game {
     const relic = this.relicManager.tryPickup(player.id, player.position);
     if (relic) {
       player.hasRelic = true;
+      this.hud.addNotification('RELIC ACQUIRED - GO TO PLANT SITE!', '#ffd700');
       return;
     }
 
