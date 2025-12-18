@@ -54,6 +54,7 @@ export class Game {
   private localPlayer: Player | null;
   private projectiles: Projectile[];
   private respawnOrbs: RespawnOrb[];
+  private bubbleZones: import('../entities/BubbleZone').BubbleZone[] = [];
   private aiControllers: Map<string, AIController>;
 
   // Timing
@@ -214,6 +215,30 @@ export class Game {
 
     // Load mode configuration for selected game mode
     this.modeConfig = getModeConfig(this.mode);
+
+    // Generate Bubble Zones for Main mode
+    if (this.modeConfig.hasBubbleZones && relics.length > 0) {
+      const { generateBubbleZones } = require('../entities/BubbleZone');
+      const squads = this.squadManager.getAllSquads();
+
+      // Create team pairs (every 2 squads form a pair)
+      const teamPairs: [string, string][] = [];
+      for (let i = 0; i < squads.length - 1; i += 2) {
+        teamPairs.push([squads[i].id, squads[i + 1].id]);
+      }
+
+      this.bubbleZones = generateBubbleZones(
+        GAME_CONFIG.mapWidth,
+        GAME_CONFIG.mapHeight,
+        this.modeConfig.bubbleZoneCount,
+        relics.map(r => r.id),
+        plantSites.map(s => s.id),
+        teamPairs
+      );
+      console.log(`[Game] Created ${this.bubbleZones.length} bubble zones`);
+    } else {
+      this.bubbleZones = [];
+    }
 
     // Initialize Arena Round System for arena modes
     if (isArenaMode(this.mode)) {
@@ -1347,6 +1372,13 @@ export class Game {
       // Render Vault (if active)
       if (this.vaultManager && this.vaultManager.isActive()) {
         this.vaultManager.render(this.renderer);
+      }
+
+      // Render Bubble Zones (Main mode containment)
+      for (const bubble of this.bubbleZones) {
+        if (bubble.state.isActive) {
+          bubble.render(this.renderer);
+        }
       }
 
       // Render players

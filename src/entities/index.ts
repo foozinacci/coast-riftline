@@ -10,3 +10,6 @@ export type { LootData } from './Loot';
 export { SpawnSite } from './SpawnSite';
 export { DeliverySite } from './DeliverySite';
 export { Obstacle, ObstacleType, createRandomObstacle } from './Obstacle';
+export { BubbleZone, generateBubbleZones } from './BubbleZone';
+export type { BubbleZoneState } from './BubbleZone';
+
