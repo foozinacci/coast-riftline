@@ -9,6 +9,9 @@ import {
   BackpackTier,
   InputState,
   MatchStats,
+  STAMINA_COST_DASH,
+  STAMINA_COST_TACTICAL,
+  STAMINA_REGEN_RATE,
 } from '../core/types';
 import {
   vec2,
@@ -30,6 +33,8 @@ export interface PlayerState {
   maxHealth: number;
   shield: number;
   maxShield: number;
+  stamina: number;       // NEW: Current stamina
+  maxStamina: number;    // NEW: Max stamina (from class config)
   isAlive: boolean;
   respawnTimer: number;
   invulnerabilityTimer: number;
@@ -128,6 +133,8 @@ export class Player extends Entity {
       maxHealth: classConfig.baseHealth,
       shield: classConfig.baseShield,
       maxShield: classConfig.baseShield,
+      stamina: classConfig.baseStamina,
+      maxStamina: classConfig.baseStamina,
       isAlive: true,
       respawnTimer: 0,
       invulnerabilityTimer: 0,
@@ -222,10 +229,18 @@ export class Player extends Entity {
       this.relicRevealTimer -= dt * 1000;
     }
 
+    // Regenerate stamina (when not dashing)
+    if (!this.isDashing && this.state.stamina < this.state.maxStamina) {
+      this.state.stamina = Math.min(
+        this.state.maxStamina,
+        this.state.stamina + STAMINA_REGEN_RATE * dt
+      );
+    }
+
     // Update dash ability
     this.updateDash(dt);
 
-    // Update tactical ability cooldown
+    // Update tactical ability state
     this.updateTactical(dt);
 
     // Update weapon state
@@ -298,15 +313,16 @@ export class Player extends Entity {
 
   /**
    * Attempt to dash in the current movement direction
+   * Uses stamina instead of cooldowns (per game spec)
    * @returns true if dash was successful
    */
   dash(): boolean {
     if (this.isDashing) return false;
-    if (this.dashCharges <= 0) return false;
     if (!this.state.isAlive) return false;
+    if (this.state.stamina < STAMINA_COST_DASH) return false; // Not enough stamina
 
-    // Use a dash charge
-    this.dashCharges--;
+    // Consume stamina instead of dash charge
+    this.state.stamina -= STAMINA_COST_DASH;
 
     // Start dash - use current velocity direction or aim direction if not moving
     const moveLength = lengthVec2(this.velocity);
@@ -319,38 +335,38 @@ export class Player extends Entity {
     this.isDashing = true;
     this.dashTimer = 150; // 150ms dash duration
 
-    // Start regen timer if not already running
-    if (this.dashRegenTimer <= 0) {
-      this.dashRegenTimer = this.dashCooldown;
-    }
-
     return true;
   }
 
   /**
-   * Check if dash is available
+   * Check if dash is available (has enough stamina)
    */
   canDash(): boolean {
-    return this.dashCharges > 0 && !this.isDashing && this.state.isAlive;
+    return this.state.stamina >= STAMINA_COST_DASH && !this.isDashing && this.state.isAlive;
   }
 
   /**
    * Attempt to use the tactical ability
+   * Uses stamina instead of cooldowns (per game spec)
    * @returns true if tactical was activated
    */
   useTactical(): boolean {
-    if (this.tacticalTimer > 0) return false;
     if (!this.state.isAlive) return false;
+    if (this.state.stamina < STAMINA_COST_TACTICAL) return false; // Not enough stamina
 
-    // Activate tactical
-    this.tacticalTimer = this.tacticalCooldown;
+    // Consume stamina
+    this.state.stamina -= STAMINA_COST_TACTICAL;
     this.tacticalActive = true;
 
     // Set duration based on class
     switch (this.playerClass) {
       case PlayerClass.SCOUT:
-        // Momentum Trail - leaves speed boost trail for 5s
-        this.tacticalDuration = 5000;
+        // Blink - short-range teleport dash
+        this.tacticalDuration = 200;
+        // Teleport forward in aim direction
+        const teleportDist = 150;
+        this.position.x += this.aimDirection.x * teleportDist;
+        this.position.y += this.aimDirection.y * teleportDist;
         break;
       case PlayerClass.VANGUARD:
         // Build Cover - instant, no duration
@@ -363,7 +379,7 @@ export class Player extends Entity {
         this.tacticalDuration = 3000;
         break;
       case PlayerClass.SCAVENGER:
-        // Orb Team Buff - instant orb bonus
+        // Orb Siphon - instant orb bonus for team
         this.tacticalDuration = 0;
         this.tacticalActive = false;
         break;
@@ -376,18 +392,26 @@ export class Player extends Entity {
   }
 
   /**
-   * Check if tactical ability is ready
+   * Check if tactical ability is ready (has enough stamina)
    */
   isTacticalReady(): boolean {
-    return this.tacticalTimer <= 0 && this.state.isAlive;
+    return this.state.stamina >= STAMINA_COST_TACTICAL && this.state.isAlive;
   }
 
   /**
-   * Get tactical cooldown progress (0-1, 1 = ready)
+   * Get stamina progress (0-1, 1 = full)
+   */
+  getStaminaProgress(): number {
+    return this.state.stamina / this.state.maxStamina;
+  }
+
+  /**
+   * Get tactical ability progress (0-1, 1 = ready)
+   * Now based on stamina instead of cooldown
    */
   getTacticalProgress(): number {
-    if (this.tacticalTimer <= 0) return 1;
-    return 1 - (this.tacticalTimer / this.tacticalCooldown);
+    if (this.state.stamina >= STAMINA_COST_TACTICAL) return 1;
+    return this.state.stamina / STAMINA_COST_TACTICAL;
   }
 
   getEffectiveSpeed(): number {
@@ -534,6 +558,8 @@ export class Player extends Entity {
       maxHealth: classConfig.baseHealth,
       shield: classConfig.baseShield,
       maxShield: classConfig.baseShield,
+      stamina: classConfig.baseStamina,
+      maxStamina: classConfig.baseStamina,
       isAlive: true,
       respawnTimer: respawnCooldown,
       invulnerabilityTimer: 2000, // 2 seconds of invulnerability

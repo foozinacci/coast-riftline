@@ -52,56 +52,71 @@ export const GAME_CONFIG: GameConfig = {
   roundsToWin: 1,
 };
 
-// Class configurations
-// Class configurations
+// Class configurations (Updated per Game Spec - Total Budget: 300 = Shields + Health + Stamina)
 export const CLASS_CONFIGS: Record<PlayerClass, ClassConfig> = {
   [PlayerClass.SCOUT]: {
     name: 'Scout',
     class: PlayerClass.SCOUT,
-    description: 'High mobility flanker who leads the team',
-    baseHealth: 75,
-    baseShield: 50,
-    moveSpeed: 350, // Fast
+    description: 'Flanking, mobility, burst damage',
+    baseHealth: 80,
+    baseShield: 70,
+    baseStamina: 150,
+    moveSpeed: 380, // Fastest
+    speedTier: 'fast',
     dashes: 3,
-    passiveDescription: 'Momentum Trail (Speed Boost)',
-    tacticalDescription: 'Momentum Trail',
-    tacticalParameter: 'Trail Length/Width',
+    lockOnRange: 'short',
+    damageReduction: 0,
+    passiveDescription: 'Momentum Trail - Leave speed-boost trail for teammates',
+    tacticalDescription: 'Blink - Short-range teleport dash',
+    ultimateDescription: 'Overdrive - Temporary max speed + stamina regen boost',
   },
   [PlayerClass.VANGUARD]: {
     name: 'Vanguard',
     class: PlayerClass.VANGUARD,
-    description: 'Tanky defender who builds cover',
-    baseHealth: 100,
-    baseShield: 125,
-    moveSpeed: 250, // Slow
+    description: 'Frontline, zone control, damage soak',
+    baseHealth: 120,
+    baseShield: 140,
+    baseStamina: 40,
+    moveSpeed: 250, // Slowest
+    speedTier: 'slow',
     dashes: 2,
-    passiveDescription: '5% Damage Reduction',
-    tacticalDescription: 'Build/Repair Cover (35 HP)',
-    tacticalParameter: 'Build Range',
+    lockOnRange: 'medium',
+    damageReduction: 0.05, // 5% damage reduction passive
+    passiveDescription: 'Damage Reduction - Takes 5% less damage',
+    tacticalDescription: 'Deploy Cover - Build destructible cover (35 HP)',
+    ultimateDescription: 'Fortify - Create barrier zone; teammates take reduced damage',
   },
   [PlayerClass.MEDIC]: {
     name: 'Medic',
     class: PlayerClass.MEDIC,
-    description: 'Support healer who shares sustainability',
+    description: 'Sustain, team healing, balanced combat',
     baseHealth: 100,
-    baseShield: 75,
+    baseShield: 100,
+    baseStamina: 100,
     moveSpeed: 300, // Medium
+    speedTier: 'medium',
     dashes: 2,
-    passiveDescription: '50% Faster Consumables',
-    tacticalDescription: 'Shared Heals',
-    tacticalParameter: 'Heal Radius',
+    lockOnRange: 'medium',
+    damageReduction: 0,
+    passiveDescription: 'Fast Consumables - 50% faster heal/shield item use',
+    tacticalDescription: 'Shared Healing - Heals also heal nearby teammates',
+    ultimateDescription: 'Regen Field - Deploy zone that heals all teammates',
   },
   [PlayerClass.SCAVENGER]: {
     name: 'Scavenger',
     class: PlayerClass.SCAVENGER,
-    description: 'Resource specialist with team buffs',
-    baseHealth: 75,
-    baseShield: 75,
+    description: 'Intel, objective control, team economy',
+    baseHealth: 110,
+    baseShield: 90,
+    baseStamina: 100,
     moveSpeed: 300, // Medium
+    speedTier: 'medium',
     dashes: 2,
-    passiveDescription: 'Static Respawn & Orb Buffs',
-    tacticalDescription: 'Orb Team Buff',
-    tacticalParameter: 'Effect Radius',
+    lockOnRange: 'long',
+    damageReduction: 0,
+    passiveDescription: 'Static Respawn - Fixed respawn timer, Resource HUD',
+    tacticalDescription: 'Orb Siphon - Orbs reduce teammates ability cooldowns',
+    ultimateDescription: 'Ping Burst - Reveal all enemies in large radius',
   },
 };
 

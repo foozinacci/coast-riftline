@@ -187,11 +187,15 @@ export interface ClassConfig {
   description: string;
   baseHealth: number;
   baseShield: number;
-  moveSpeed: number; // Raw pixels per second
+  baseStamina: number;       // NEW: Stamina for abilities
+  moveSpeed: number;         // Raw pixels per second
+  speedTier: 'slow' | 'medium' | 'fast'; // NEW: Speed tier
   dashes: number;
+  lockOnRange: 'short' | 'medium' | 'long'; // NEW: Lock-on targeting range
+  damageReduction: number;   // NEW: Passive damage reduction (e.g., 0.05 = 5%)
   passiveDescription: string;
   tacticalDescription: string;
-  tacticalParameter: string;
+  ultimateDescription: string; // NEW: Ultimate ability
 }
 
 // Weapon configuration
@@ -559,11 +563,20 @@ export interface PlantInteraction {
 // ============================================================================
 
 export const PLANT_DURATION_MS = 5000; // 5 seconds to plant
-export const PASSIVE_HEAL_DELAY_MS = 2500; // 2.5 seconds before healing starts
-export const PASSIVE_HEAL_RATE = 5; // HP per second
+export const PASSIVE_HEAL_DELAY_MS = 2000; // 2 seconds before healing starts (per spec)
+export const PASSIVE_HEAL_RATE = 20; // 20 HP per second (per spec)
 export const CAMPFIRE_HEAL_RATE = 15; // HP per second (shields first)
 export const ORB_LIFETIME_MS = 30000; // Orbs expire after 30 seconds
-export const ORB_BASE_VALUE = 3; // Seconds reduced from respawn cooldown
+export const ORB_BASE_VALUE = 1; // Orbs dropped = round number (per spec)
 export const SPAWN_VOTE_DURATION_MS = 15000; // 15 seconds to vote
 export const RELIC_CARRIER_SPEED_PENALTY = 0.3; // 30% speed reduction
+
+// Stamina costs (per spec - Low/Medium/High)
+export const STAMINA_COST_DASH = 15;      // Low cost
+export const STAMINA_COST_TACTICAL = 35;  // Medium cost
+export const STAMINA_COST_ULTIMATE = 80;  // High cost
+export const STAMINA_REGEN_RATE = 10;     // Stamina per second (when not using abilities)
+
+// Base respawn time (per spec: 2 seconds round 1)
+export const BASE_RESPAWN_TIME_MS = 2000;
 
