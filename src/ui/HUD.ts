@@ -174,13 +174,14 @@ export class HUD {
     gamePhase: GamePhase,
     riftlineState: RiftlineState,
     aliveSquads: number,
+    alivePlayers: number,
     relicsDelivered: number,
     totalRelics: number
   ): void {
     const screen = renderer.getScreenSize();
 
     // Always show game info
-    this.renderGameInfo(renderer, screen, gamePhase, aliveSquads);
+    this.renderGameInfo(renderer, screen, gamePhase, aliveSquads, alivePlayers);
 
     // Arena HUD (persistent round display for arena modes)
     if (this.arenaState?.isActive) {
@@ -240,7 +241,8 @@ export class HUD {
     renderer: Renderer,
     screen: { x: number; y: number },
     gamePhase: GamePhase,
-    aliveSquads: number
+    aliveSquads: number,
+    alivePlayers: number
   ): void {
     // Render Pause Button (Top Left)
     const btnSize = 40;
@@ -266,13 +268,13 @@ export class HUD {
     const x = screen.x / 2;
     const y = 20;
 
-    // Squads remaining
+    // Squads and players remaining
     renderer.drawScreenText(
-      `${aliveSquads} SQUADS`,
+      `ALIVE: ${aliveSquads} squads / ${alivePlayers} players`,
       x,
       y,
       '#ffffff',
-      16,
+      14,
       'center',
       'top'
     );

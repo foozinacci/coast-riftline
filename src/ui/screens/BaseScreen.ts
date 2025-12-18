@@ -208,8 +208,9 @@ export abstract class BaseScreen {
     }
 
     /**
-     * Add a focusable button element.
-     */
+ * Add a focusable button element.
+ * If a button with the same ID already exists, it will be updated instead of duplicated.
+ */
     protected addButton(
         id: string,
         label: string,
@@ -220,7 +221,9 @@ export abstract class BaseScreen {
         onSelect: () => void,
         disabled: boolean = false
     ): void {
-        this.focusableElements.push({
+        // Check if button with this ID already exists
+        const existingIndex = this.focusableElements.findIndex(e => e.id === id);
+        const button = {
             id,
             label,
             x,
@@ -229,7 +232,15 @@ export abstract class BaseScreen {
             height,
             onSelect,
             disabled,
-        });
+        };
+
+        if (existingIndex >= 0) {
+            // Update existing button
+            this.focusableElements[existingIndex] = button;
+        } else {
+            // Add new button
+            this.focusableElements.push(button);
+        }
     }
 
     /**

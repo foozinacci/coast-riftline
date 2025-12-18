@@ -27,6 +27,14 @@ Each bubble zone contains:
 - Pairing can be random or based on spawn voting
 - Each pair is assigned to one bubble zone
 
+#### Ranked Mode Bubble Voting (FIFO)
+- Before pre-game intel, teams vote on which bubble to spawn in
+- **Voting Order**: First-In-First-Out (FIFO) - first votes are processed first
+- **Capacity**: Maximum 2 teams per bubble
+- **Host Priority**: If only 2 players vote from a team, the host's vote takes precedence
+- **Auto-Select**: Teams that don't vote are auto-assigned to remaining bubbles
+- **Timer**: 15 second voting window
+
 ### Bubble Mechanics
 | Rule | Description |
 |------|-------------|

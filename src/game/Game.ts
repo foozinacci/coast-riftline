@@ -330,6 +330,16 @@ export class Game {
           teamPairs
         );
         console.log(`[Game] Created ${this.bubbleZones.length} bubble zones`);
+
+        // Set up callback to deactivate bubble when its relic is planted
+        this.relicManager.setOnRelicPlanted((relicId: string) => {
+          const bubble = this.bubbleZones.find(b => b.state.relicId === relicId);
+          if (bubble) {
+            bubble.state.isActive = false;
+            console.log(`[Game] Bubble zone deactivated after relic ${relicId} planted`);
+            this.hud.addNotification('BUBBLE ZONE COLLAPSED!', '#00ccff');
+          }
+        });
       } else {
         console.log('[Game] Not enough squads for bubble zones');
         this.bubbleZones = [];
@@ -1440,12 +1450,14 @@ export class Game {
         } else {
           // Normal HUD
           const riftlineState = this.riftline.getState();
+          const alivePlayers = this.squadManager.getAllPlayers().filter(p => p.state.isAlive).length;
           this.hud.render(
             this.renderer,
             this.localPlayer,
             this.phase,
             riftlineState,
             this.squadManager.getAliveSquads().length,
+            alivePlayers,
             this.map.deliverySite.relicsDelivered,
             GAME_CONFIG.totalRelics
           );
