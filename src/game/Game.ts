@@ -539,6 +539,10 @@ export class Game {
 
     // Reset and respawn each squad
     squads.forEach((squad, squadIndex) => {
+      // CRITICAL: Reset squad elimination flag for BO3+ rounds
+      squad.isEliminated = false;
+      squad.wipeTimerRemainingMs = null;
+
       const squadPlayers = playersBySquad.get(squad.id) || [];
 
       // Get spawn site for this team (cycle through available sites)
@@ -552,7 +556,9 @@ export class Game {
         player.state.isAlive = true;
         player.state.health = player.state.maxHealth;
         player.state.shield = 0; // Start fresh with no shield
+        player.state.stamina = player.state.maxStamina; // Reset stamina
         player.state.invulnerabilityTimer = 1500; // Brief invulnerability on round start
+        player.state.respawnTimer = 0; // Clear any respawn timer
         player.position.x = spawnPos.x;
         player.position.y = spawnPos.y;
         player.velocity.x = 0;
@@ -565,11 +571,11 @@ export class Game {
           player.weapon.reloadTimer = 0;
         }
 
-        // Reset dash charges and tactical
-        player.dashCharges = player.maxDashes;
-        player.dashRegenTimer = 0;
-        player.tacticalTimer = 0;
+        // Reset abilities
+        player.isDashing = false;
+        player.dashTimer = 0;
         player.tacticalActive = false;
+        player.tacticalDuration = 0;
 
         console.log(`[Game] Reset player ${player.id} at (${spawnPos.x.toFixed(0)}, ${spawnPos.y.toFixed(0)})`);
       });
