@@ -1,5 +1,5 @@
 // Training Setup Screen
-// Solo offline practice for all game modes
+// Solo offline practice for all game modes - select mode to instantly start
 
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { AppState, GameMode, TrainingDifficulty } from '../../core/types';
@@ -10,17 +10,7 @@ type StartTrainingCallback = (mode: GameMode, difficulty: TrainingDifficulty) =>
 
 export class TrainingSetup extends BaseScreen {
     private startTrainingCallback: StartTrainingCallback | null = null;
-    private selectedMode: GameMode = GameMode.MAIN;
     private selectedDifficulty: TrainingDifficulty = TrainingDifficulty.MEDIUM;
-
-    // All modes available for training (offline practice)
-    private modes: GameMode[] = [
-        GameMode.MAIN,
-        GameMode.ARENA_1V1,
-        GameMode.ARENA_1V1V1,
-        GameMode.ARENA_3V3,
-        GameMode.ARENA_3V3V3,
-    ];
 
     private difficulties: TrainingDifficulty[] = [
         TrainingDifficulty.EASY,
@@ -36,6 +26,14 @@ export class TrainingSetup extends BaseScreen {
         this.startTrainingCallback = callback;
     }
 
+    private startMode(mode: GameMode): void {
+        if (this.startTrainingCallback) {
+            stopMusic();
+            this.startTrainingCallback(mode, this.selectedDifficulty);
+            this.navigation.forceNavigateTo(AppState.IN_MATCH);
+        }
+    }
+
     onEnter(): void {
         this.clearButtons();
         super.onEnter();
@@ -43,36 +41,41 @@ export class TrainingSetup extends BaseScreen {
 
     private setupButtons(ctx: ScreenContext): void {
         this.layoutButtonsVertical([
+            // Quick Play modes - click to start immediately
             {
-                id: 'btn-mode',
-                label: `MODE: ${this.getModeLabel(this.selectedMode)}`,
-                onSelect: () => {
-                    const idx = this.modes.indexOf(this.selectedMode);
-                    const nextIdx = (idx + 1) % this.modes.length;
-                    this.selectedMode = this.modes[nextIdx];
-                    this.clearButtons(); // Rebuild to update labels
-                },
+                id: 'btn-main',
+                label: 'RIFTLINE (30 Player)',
+                onSelect: () => this.startMode(GameMode.MAIN),
             },
             {
+                id: 'btn-1v1',
+                label: 'ARENA 1v1',
+                onSelect: () => this.startMode(GameMode.ARENA_1V1),
+            },
+            {
+                id: 'btn-1v1v1',
+                label: 'ARENA 1v1v1',
+                onSelect: () => this.startMode(GameMode.ARENA_1V1V1),
+            },
+            {
+                id: 'btn-3v3',
+                label: 'ARENA 3v3',
+                onSelect: () => this.startMode(GameMode.ARENA_3V3),
+            },
+            {
+                id: 'btn-3v3v3',
+                label: 'ARENA 3v3v3',
+                onSelect: () => this.startMode(GameMode.ARENA_3V3V3),
+            },
+            // Difficulty toggle (optional)
+            {
                 id: 'btn-difficulty',
-                label: `BOT DIFFICULTY: ${this.selectedDifficulty.toUpperCase()}`,
+                label: `DIFFICULTY: ${this.selectedDifficulty.toUpperCase()}`,
                 onSelect: () => {
                     const idx = this.difficulties.indexOf(this.selectedDifficulty);
                     const nextIdx = (idx + 1) % this.difficulties.length;
                     this.selectedDifficulty = this.difficulties[nextIdx];
-                    this.refreshButtonLabel('btn-difficulty', `BOT DIFFICULTY: ${this.selectedDifficulty.toUpperCase()}`);
-                },
-            },
-            {
-                id: 'btn-start',
-                label: 'START TRAINING',
-                onSelect: () => {
-                    if (this.startTrainingCallback) {
-                        // Fade out lobby music
-                        stopMusic();
-                        this.startTrainingCallback(this.selectedMode, this.selectedDifficulty);
-                        this.navigation.forceNavigateTo(AppState.IN_MATCH);
-                    }
+                    this.refreshButtonLabel('btn-difficulty', `DIFFICULTY: ${this.selectedDifficulty.toUpperCase()}`);
                 },
             },
             {
@@ -80,18 +83,7 @@ export class TrainingSetup extends BaseScreen {
                 label: 'BACK',
                 onSelect: () => this.navigation.goBack(),
             },
-        ], ctx, ctx.screenHeight * 0.35);
-    }
-
-    private getModeLabel(mode: GameMode): string {
-        switch (mode) {
-            case GameMode.MAIN: return "MAIN (RELIC)";
-            case GameMode.ARENA_1V1: return "ARENA 1v1";
-            case GameMode.ARENA_1V1V1: return "ARENA 1v1v1";
-            case GameMode.ARENA_3V3: return "ARENA 3v3";
-            case GameMode.ARENA_3V3V3: return "ARENA 3v3v3";
-            default: return mode;
-        }
+        ], ctx, ctx.screenHeight * 0.18, 200, 40, 8);
     }
 
     private refreshButtonLabel(id: string, newLabel: string): void {
@@ -111,26 +103,14 @@ export class TrainingSetup extends BaseScreen {
 
         // Title
         this.renderTitle(ctx, 'TRAINING');
-        this.renderSubtitle(ctx, 'Practice offline against bots');
+        this.renderSubtitle(ctx, 'Select a mode to start vs bots');
 
         // Render buttons
         this.renderButtons(ctx);
 
-        // Mode description
-        const modeDescription = this.getModeDescription(this.selectedMode);
-        renderer.drawScreenText(
-            modeDescription,
-            screenWidth / 2,
-            screenHeight - 100,
-            'rgba(120, 140, 160, 1)',
-            14,
-            'center',
-            'middle'
-        );
-
         // Footer hint
         renderer.drawScreenText(
-            ctx.isMobile ? 'TAP to select' : 'ENTER to select • ESC to go back',
+            ctx.isMobile ? 'TAP mode to start' : 'SELECT mode to start • ESC to go back',
             screenWidth / 2,
             screenHeight - 30,
             'rgba(100, 105, 115, 1)',
@@ -138,23 +118,6 @@ export class TrainingSetup extends BaseScreen {
             'center',
             'middle'
         );
-    }
-
-    private getModeDescription(mode: GameMode): string {
-        switch (mode) {
-            case GameMode.MAIN:
-                return "10 Squads • 3 Players Each • Collect & Plant Relics";
-            case GameMode.ARENA_1V1:
-                return "1v1 Duel • Pure Elimination";
-            case GameMode.ARENA_1V1V1:
-                return "Free-for-All • Last Player Standing";
-            case GameMode.ARENA_3V3:
-                return "Team vs Team • Round-Based";
-            case GameMode.ARENA_3V3V3:
-                return "3-Way Team Battle • High Chaos";
-            default:
-                return "";
-        }
     }
 
     handleBack(): void {
