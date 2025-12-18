@@ -217,37 +217,7 @@ export class Game {
     // Load mode configuration for selected game mode
     this.modeConfig = getModeConfig(this.mode);
 
-    // Generate Bubble Zones for Main mode
-    console.log(`[Game] Bubble check: hasBubbleZones=${this.modeConfig.hasBubbleZones}, relics=${relics.length}, squads=${this.squadManager.getAllSquads().length}`);
-    if (this.modeConfig.hasBubbleZones && relics.length > 0) {
-      const squads = this.squadManager.getAllSquads();
-
-      // Create team pairs (every 2 squads form a pair)
-      const teamPairs: [string, string][] = [];
-      for (let i = 0; i < squads.length - 1; i += 2) {
-        teamPairs.push([squads[i].id, squads[i + 1].id]);
-      }
-
-      console.log(`[Game] Generating ${this.modeConfig.bubbleZoneCount} bubbles with ${teamPairs.length} team pairs`);
-
-      if (teamPairs.length > 0) {
-        this.bubbleZones = generateBubbleZones(
-          GAME_CONFIG.mapWidth,
-          GAME_CONFIG.mapHeight,
-          this.modeConfig.bubbleZoneCount,
-          relics.map(r => r.id),
-          plantSites.map(s => s.id),
-          teamPairs
-        );
-        console.log(`[Game] Created ${this.bubbleZones.length} bubble zones`);
-      } else {
-        console.log('[Game] Not enough squads for bubble zones');
-        this.bubbleZones = [];
-      }
-    } else {
-      this.bubbleZones = [];
-      console.log('[Game] Bubbles disabled or no relics');
-    }
+    // NOTE: Bubble zone generation moved to AFTER squad creation (see below)
 
     // Initialize Arena Round System for arena modes
     if (isArenaMode(this.mode)) {
@@ -335,6 +305,37 @@ export class Game {
     // Create enemy squads
     for (let i = 1; i < teamCount; i++) {
       this.squadManager.createSquad();
+    }
+
+    // Generate Bubble Zones for Main mode (NOW that squads exist)
+    console.log(`[Game] Bubble check: hasBubbleZones=${this.modeConfig.hasBubbleZones}, relics=${this.map.relics.length}, squads=${this.squadManager.getAllSquads().length}`);
+    if (this.modeConfig.hasBubbleZones && this.map.relics.length > 0) {
+      const squads = this.squadManager.getAllSquads();
+
+      // Create team pairs (every 2 squads form a pair)
+      const teamPairs: [string, string][] = [];
+      for (let i = 0; i < squads.length - 1; i += 2) {
+        teamPairs.push([squads[i].id, squads[i + 1].id]);
+      }
+
+      console.log(`[Game] Generating ${this.modeConfig.bubbleZoneCount} bubbles with ${teamPairs.length} team pairs`);
+
+      if (teamPairs.length > 0) {
+        this.bubbleZones = generateBubbleZones(
+          GAME_CONFIG.mapWidth,
+          GAME_CONFIG.mapHeight,
+          this.modeConfig.bubbleZoneCount,
+          this.map.relics.map(r => r.id),
+          this.map.plantSites.map(s => s.id),
+          teamPairs
+        );
+        console.log(`[Game] Created ${this.bubbleZones.length} bubble zones`);
+      } else {
+        console.log('[Game] Not enough squads for bubble zones');
+        this.bubbleZones = [];
+      }
+    } else {
+      this.bubbleZones = [];
     }
 
     // For non-ranked matches (current default): Skip voting, use random spawns
