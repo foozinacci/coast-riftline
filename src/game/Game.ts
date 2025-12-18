@@ -218,6 +218,7 @@ export class Game {
     this.modeConfig = getModeConfig(this.mode);
 
     // Generate Bubble Zones for Main mode
+    console.log(`[Game] Bubble check: hasBubbleZones=${this.modeConfig.hasBubbleZones}, relics=${relics.length}, squads=${this.squadManager.getAllSquads().length}`);
     if (this.modeConfig.hasBubbleZones && relics.length > 0) {
       const squads = this.squadManager.getAllSquads();
 
@@ -227,17 +228,25 @@ export class Game {
         teamPairs.push([squads[i].id, squads[i + 1].id]);
       }
 
-      this.bubbleZones = generateBubbleZones(
-        GAME_CONFIG.mapWidth,
-        GAME_CONFIG.mapHeight,
-        this.modeConfig.bubbleZoneCount,
-        relics.map(r => r.id),
-        plantSites.map(s => s.id),
-        teamPairs
-      );
-      console.log(`[Game] Created ${this.bubbleZones.length} bubble zones`);
+      console.log(`[Game] Generating ${this.modeConfig.bubbleZoneCount} bubbles with ${teamPairs.length} team pairs`);
+
+      if (teamPairs.length > 0) {
+        this.bubbleZones = generateBubbleZones(
+          GAME_CONFIG.mapWidth,
+          GAME_CONFIG.mapHeight,
+          this.modeConfig.bubbleZoneCount,
+          relics.map(r => r.id),
+          plantSites.map(s => s.id),
+          teamPairs
+        );
+        console.log(`[Game] Created ${this.bubbleZones.length} bubble zones`);
+      } else {
+        console.log('[Game] Not enough squads for bubble zones');
+        this.bubbleZones = [];
+      }
     } else {
       this.bubbleZones = [];
+      console.log('[Game] Bubbles disabled or no relics');
     }
 
     // Initialize Arena Round System for arena modes
