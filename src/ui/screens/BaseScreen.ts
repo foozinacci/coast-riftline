@@ -105,31 +105,57 @@ export abstract class BaseScreen {
     ): void {
         const { renderer } = ctx;
         const { x, y, width, height, label, disabled } = element;
+        const radius = 8;
 
-        // Button background
-        const bgColor = disabled
-            ? 'rgba(60, 60, 70, 0.6)'
-            : isFocused
-                ? 'rgba(100, 180, 255, 0.8)'
-                : 'rgba(40, 45, 55, 0.8)';
+        // Button aesthetics
+        let bgColor = 'rgba(30, 35, 45, 0.9)'; // Deep sleek dark
+        let borderColor = 'rgba(70, 80, 100, 0.4)';
+        let borderWidth = 1;
+        let textColor = 'rgba(240, 240, 240, 0.9)';
 
-        renderer.drawScreenRect(x, y, width, height, bgColor);
-
-        // Focus border
-        if (isFocused) {
-            renderer.drawScreenRect(x, y, width, height, undefined, 'rgba(150, 220, 255, 1)', 3);
-        } else {
-            renderer.drawScreenRect(x, y, width, height, undefined, 'rgba(80, 85, 95, 0.8)', 1);
+        if (disabled) {
+            bgColor = 'rgba(25, 25, 30, 0.5)';
+            borderColor = 'rgba(50, 50, 60, 0.2)';
+            textColor = 'rgba(100, 100, 110, 0.5)';
+        } else if (isFocused) {
+            // Vibrant interaction state
+            bgColor = 'rgba(60, 140, 255, 0.15)'; // Glassy blue tint
+            borderColor = 'rgba(80, 200, 255, 0.9)'; // Neon blue border
+            borderWidth = 2;
+            textColor = '#ffffff';
         }
 
-        // Label (centered in button)
-        const textColor = disabled ? 'rgba(100, 100, 110, 1)' : 'rgba(255, 255, 255, 1)';
+        // Draw button body
+        renderer.drawScreenRoundRect(
+            x,
+            y,
+            width,
+            height,
+            radius,
+            bgColor,
+            borderColor,
+            borderWidth
+        );
+
+        // Highlight/Reflection effect (top half) for "premium" feel
+        if (!disabled && isFocused) {
+            renderer.drawScreenRoundRect(
+                x + 2,
+                y + 2,
+                width - 4,
+                height / 2 - 2,
+                radius - 2,
+                'rgba(255, 255, 255, 0.05)'
+            );
+        }
+
+        // Label
         renderer.drawScreenText(
             label,
             x + width / 2,
             y + height / 2,
             textColor,
-            18,
+            16, // Slightly smaller, more refined font size
             'center',
             'middle'
         );
@@ -215,28 +241,49 @@ export abstract class BaseScreen {
 
     /**
      * Create a centered vertical button layout.
+     * Responsive: sizes scale with screen dimensions.
      */
     protected layoutButtonsVertical(
         buttons: Array<{ id: string; label: string; onSelect: () => void; disabled?: boolean }>,
         ctx: ScreenContext,
-        startY: number = 200,
-        buttonWidth: number = 240,
-        buttonHeight: number = 50,
-        gap: number = 15
+        startY?: number,
+        buttonWidth?: number,
+        buttonHeight?: number,
+        gap?: number
     ): void {
         this.clearButtons();
 
-        const x = (ctx.screenWidth - buttonWidth) / 2;
+        const { screenWidth, screenHeight } = ctx;
+
+        // Responsive sizing based on screen dimensions
+        const scale = Math.min(screenWidth / 1920, screenHeight / 1080, 1);
+        const minScale = 0.5;
+        const effectiveScale = Math.max(scale, minScale);
+
+        // Calculate responsive dimensions
+        const responsiveWidth = buttonWidth ?? Math.min(300 * effectiveScale, screenWidth * 0.8, 300);
+        const responsiveHeight = buttonHeight ?? Math.min(50 * effectiveScale, 50);
+        const responsiveGap = gap ?? Math.min(15 * effectiveScale, 15);
+
+        // Calculate total height of all buttons
+        const totalButtonsHeight = buttons.length * responsiveHeight + (buttons.length - 1) * responsiveGap;
+
+        // Start position - center vertically if not specified, with room for logo
+        const logoSpace = screenHeight * 0.25; // Reserve top 25% for logo
+        const availableHeight = screenHeight - logoSpace - 60; // 60px bottom margin
+        const calculatedStartY = startY ?? logoSpace + (availableHeight - totalButtonsHeight) / 2;
+
+        const x = (screenWidth - responsiveWidth) / 2;
 
         buttons.forEach((button, index) => {
-            const y = startY + index * (buttonHeight + gap);
+            const y = calculatedStartY + index * (responsiveHeight + responsiveGap);
             this.addButton(
                 button.id,
                 button.label,
                 x,
                 y,
-                buttonWidth,
-                buttonHeight,
+                responsiveWidth,
+                responsiveHeight,
                 button.onSelect,
                 button.disabled
             );

@@ -28,7 +28,7 @@ export class SettingsRoot extends BaseScreen {
             {
                 id: 'btn-audio',
                 label: 'AUDIO',
-                onSelect: () => console.log('Audio settings - coming soon'),
+                onSelect: () => this.navigation.navigateTo(AppState.AUDIO_SETTINGS),
             },
             {
                 id: 'btn-video',

@@ -100,12 +100,49 @@ export class NavigationManager {
             state: AppState.MAIN_MENU,
             allowedTransitions: [
                 AppState.PLAY_MENU,
+                AppState.PARTY,
+                AppState.FRIENDS,
+                AppState.PROFILE,
+                AppState.LEADERBOARD,
                 AppState.TRAINING_SETUP,
                 AppState.CUSTOMIZE_MENU,
                 AppState.SETTINGS_ROOT,
+                AppState.MATCHMAKING,
+                AppState.PRIVATE_MATCH,
                 AppState.EXIT_CONFIRM,
             ],
             backTarget: 'exit_confirm',
+        });
+
+        // 4b) PARTY
+        map.set(AppState.PARTY, {
+            state: AppState.PARTY,
+            allowedTransitions: [
+                AppState.MAIN_MENU,
+                AppState.FRIENDS,
+                AppState.PLAY_MENU,
+                AppState.MATCHMAKING,
+            ],
+            backTarget: AppState.MAIN_MENU,
+        });
+
+        // 4c) FRIENDS
+        map.set(AppState.FRIENDS, {
+            state: AppState.FRIENDS,
+            allowedTransitions: [
+                AppState.MAIN_MENU,
+                AppState.PARTY,
+            ],
+            backTarget: AppState.MAIN_MENU,
+        });
+
+        // 4d) PROFILE
+        map.set(AppState.PROFILE, {
+            state: AppState.PROFILE,
+            allowedTransitions: [
+                AppState.MAIN_MENU,
+            ],
+            backTarget: AppState.MAIN_MENU,
         });
 
         // 5) PLAY MENU
@@ -182,7 +219,7 @@ export class NavigationManager {
         // 11) MATCHMAKING / CONNECTING
         map.set(AppState.MATCHMAKING, {
             state: AppState.MATCHMAKING,
-            allowedTransitions: [AppState.LOBBY, AppState.MATCH_LOADING],
+            allowedTransitions: [AppState.LOBBY, AppState.MATCH_LOADING, AppState.MAIN_MENU],
             backTarget: 'caller',
         });
 
@@ -250,7 +287,10 @@ export class NavigationManager {
         // 19) SETTINGS ROOT
         map.set(AppState.SETTINGS_ROOT, {
             state: AppState.SETTINGS_ROOT,
-            allowedTransitions: [AppState.CONTROLS_MENU],
+            allowedTransitions: [
+                AppState.CONTROLS_MENU,
+                AppState.AUDIO_SETTINGS,
+            ],
             backTarget: 'caller',
         });
 
@@ -260,6 +300,7 @@ export class NavigationManager {
             allowedTransitions: [
                 AppState.MKB_BINDINGS,
                 AppState.CONTROLLER_BINDINGS,
+                AppState.TOUCH_SETTINGS,
                 AppState.SETTINGS_ROOT,
             ],
             backTarget: AppState.SETTINGS_ROOT,
@@ -300,6 +341,27 @@ export class NavigationManager {
             state: AppState.CLASS_SELECT,
             allowedTransitions: [AppState.CUSTOMIZE_MENU],
             backTarget: AppState.CUSTOMIZE_MENU,
+        });
+
+        // TOUCH SETTINGS
+        map.set(AppState.TOUCH_SETTINGS, {
+            state: AppState.TOUCH_SETTINGS,
+            allowedTransitions: [AppState.CONTROLS_MENU],
+            backTarget: AppState.CONTROLS_MENU,
+        });
+
+        // LEADERBOARD
+        map.set(AppState.LEADERBOARD, {
+            state: AppState.LEADERBOARD,
+            allowedTransitions: [AppState.MAIN_MENU],
+            backTarget: AppState.MAIN_MENU,
+        });
+
+        // AUDIO SETTINGS
+        map.set(AppState.AUDIO_SETTINGS, {
+            state: AppState.AUDIO_SETTINGS,
+            allowedTransitions: [AppState.SETTINGS_ROOT],
+            backTarget: AppState.SETTINGS_ROOT,
         });
 
         return map;

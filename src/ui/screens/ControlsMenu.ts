@@ -26,11 +26,16 @@ export class ControlsMenu extends BaseScreen {
                 onSelect: () => this.navigation.navigateTo(AppState.CONTROLLER_BINDINGS),
             },
             {
+                id: 'btn-touch',
+                label: 'TOUCH CONTROLS',
+                onSelect: () => this.navigation.navigateTo(AppState.TOUCH_SETTINGS),
+            },
+            {
                 id: 'btn-back',
                 label: 'BACK',
                 onSelect: () => this.navigation.goBack(),
             },
-        ], ctx, ctx.screenHeight * 0.35);
+        ], ctx, ctx.screenHeight * 0.30);
     }
 
     render(ctx: ScreenContext): void {

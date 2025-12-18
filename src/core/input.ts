@@ -12,9 +12,13 @@ export class InputManager {
   private mouseDown: boolean;
   private isMobile: boolean;
 
-  // Pinch-zoom tracking (mobile)
-  private pinchStartDist: number | null = null;
-  private pinchStartZoom: number = 1;
+  // Raw key event for text input (code entry, etc.)
+  private lastKeyPressed: string | null = null;
+
+  // Pinch-zoom tracking (mobile) - DISABLED per spec A6
+  // Zoom is controlled via explicit +/- buttons only
+  // private pinchStartDist: number | null = null;
+  // private pinchStartZoom: number = 1;
 
   // Touch joystick settings
   private readonly joystickRadius = 60;
@@ -92,6 +96,11 @@ export class InputManager {
   private onKeyDown(e: KeyboardEvent): void {
     this.keys.add(e.code);
 
+    // Store raw key for text input (single character keys and backspace)
+    if (e.key.length === 1 || e.key === 'Backspace') {
+      this.lastKeyPressed = e.key;
+    }
+
     if (e.code === 'KeyR') {
       this.inputState.isReloading = true;
     }
@@ -135,6 +144,14 @@ export class InputManager {
 
   private onMouseDown(e: MouseEvent): void {
     if (e.button === 0) {
+      // IMPORTANT: Update mouse position on click (not just mousemove)
+      // This ensures menu buttons get focused correctly when clicked
+      const rect = this.canvas.getBoundingClientRect();
+      this.mousePosition = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+
       // Check pause button (Top Left)
       if (this.isPointInButton(this.mousePosition.x, this.mousePosition.y, this.pauseButtonRect.x, this.pauseButtonRect.y, this.pauseButtonRect.size)) {
         this.inputState.back = true;
@@ -175,17 +192,18 @@ export class InputManager {
       };
     }
 
-    // If two touches are active, initialize pinch baseline.
-    if (e.touches.length >= 2) {
-      const t0 = e.touches[0];
-      const t1 = e.touches[1];
-      const x0 = t0.clientX - rect.left;
-      const y0 = t0.clientY - rect.top;
-      const x1 = t1.clientX - rect.left;
-      const y1 = t1.clientY - rect.top;
-      this.pinchStartDist = Math.hypot(x1 - x0, y1 - y0);
-      this.pinchStartZoom = this.inputState.zoom;
-    }
+    // Pinch-zoom DISABLED per spec A6 - zoom via buttons only
+    // This prevents accidental zoom during gameplay
+    // if (e.touches.length >= 2) {
+    //   const t0 = e.touches[0];
+    //   const t1 = e.touches[1];
+    //   const x0 = t0.clientX - rect.left;
+    //   const y0 = t0.clientY - rect.top;
+    //   const x1 = t1.clientX - rect.left;
+    //   const y1 = t1.clientY - rect.top;
+    //   this.pinchStartDist = Math.hypot(x1 - x0, y1 - y0);
+    //   this.pinchStartZoom = this.inputState.zoom;
+    // }
 
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
@@ -284,18 +302,19 @@ export class InputManager {
     e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
 
-    // Pinch zoom if 2 touches are down.
-    if (e.touches.length >= 2 && this.pinchStartDist !== null) {
-      const t0 = e.touches[0];
-      const t1 = e.touches[1];
-      const x0 = t0.clientX - rect.left;
-      const y0 = t0.clientY - rect.top;
-      const x1 = t1.clientX - rect.left;
-      const y1 = t1.clientY - rect.top;
-      const dist = Math.hypot(x1 - x0, y1 - y0);
-      const scale = dist / this.pinchStartDist;
-      this.inputState.zoom = Math.max(0.5, Math.min(2, this.pinchStartZoom * scale));
-    }
+    // Pinch zoom DISABLED per spec A6 - use zoom buttons instead
+    // This prevents accidental zoom during gameplay on mobile
+    // if (e.touches.length >= 2 && this.pinchStartDist !== null) {
+    //   const t0 = e.touches[0];
+    //   const t1 = e.touches[1];
+    //   const x0 = t0.clientX - rect.left;
+    //   const y0 = t0.clientY - rect.top;
+    //   const x1 = t1.clientX - rect.left;
+    //   const y1 = t1.clientY - rect.top;
+    //   const dist = Math.hypot(x1 - x0, y1 - y0);
+    //   const scale = dist / this.pinchStartDist;
+    //   this.inputState.zoom = Math.max(0.5, Math.min(2, this.pinchStartZoom * scale));
+    // }
 
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
@@ -333,10 +352,10 @@ export class InputManager {
     e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
 
-    // Reset pinch tracking when fewer than two touches remain
-    if (e.touches.length < 2) {
-      this.pinchStartDist = null;
-    }
+    // Pinch tracking disabled per spec A6
+    // if (e.touches.length < 2) {
+    //   this.pinchStartDist = null;
+    // }
 
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
@@ -515,6 +534,16 @@ export class InputManager {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Get and consume the last raw key pressed (for text input).
+   * Returns null if no key was pressed.
+   */
+  consumeRawKey(): string | null {
+    const key = this.lastKeyPressed;
+    this.lastKeyPressed = null;
+    return key;
   }
 
   destroy(): void {

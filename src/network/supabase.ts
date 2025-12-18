@@ -7,8 +7,14 @@ import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabas
 const SUPABASE_URL = 'https://apschbgavppsbjxieuql.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Create Supabase client
-export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Create Supabase client with session persistence
+export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        persistSession: true, // Keep session in localStorage
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+    }
+});
 
 // Types for matchmaking and lobbies
 export interface PlayerProfile {
@@ -17,6 +23,7 @@ export interface PlayerProfile {
     display_name: string;
     avatar_url?: string;
     rank?: number;
+    friend_code?: string;
     created_at: string;
 }
 
@@ -82,6 +89,17 @@ export class SupabaseService {
 
     async signInAnonymously(): Promise<PlayerProfile | null> {
         try {
+            // First check if there's an existing session
+            const { data: sessionData } = await supabase.auth.getSession();
+
+            if (sessionData.session?.user) {
+                // Already logged in - just get the profile
+                const profile = await this.getOrCreateProfile(sessionData.session.user.id);
+                this.currentUser = profile;
+                return profile;
+            }
+
+            // No existing session - create new anonymous user
             const { data, error } = await supabase.auth.signInAnonymously();
             if (error) throw error;
 
@@ -116,13 +134,30 @@ export class SupabaseService {
                 .eq('id', userId)
                 .single();
 
-            if (existing) return existing as PlayerProfile;
+            if (existing) {
+                // If profile exists but missing friend_code, generate one
+                if (!existing.friend_code) {
+                    const friendCode = this.generateFriendCode();
+                    const { data: updated } = await supabase
+                        .from('profiles')
+                        .update({ friend_code: friendCode })
+                        .eq('id', userId)
+                        .select()
+                        .single();
+                    return (updated || existing) as PlayerProfile;
+                }
+                return existing as PlayerProfile;
+            }
+
+            // Generate a friend code (6 alphanumeric characters)
+            const friendCode = this.generateFriendCode();
 
             // Create new profile
             const newProfile = {
                 id: userId,
                 username: `Player_${userId.slice(0, 8)}`,
                 display_name: `Recruit`,
+                friend_code: friendCode,
                 created_at: new Date().toISOString(),
             };
 
@@ -138,6 +173,15 @@ export class SupabaseService {
             console.error('Profile creation failed:', error);
             return null;
         }
+    }
+
+    private generateFriendCode(): string {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
     }
 
     // ==================== LOBBIES ====================
@@ -431,6 +475,77 @@ export class SupabaseService {
             code += chars.charAt(Math.floor(Math.random() * chars.length));
         }
         return code;
+    }
+
+    // ==================== LEADERBOARD ====================
+
+    async getLeaderboard(type: string, limit: number = 50): Promise<any[]> {
+        try {
+            let orderBy = 'rift_tier';
+            let ascending = false;
+
+            switch (type) {
+                case 'rift_tier':
+                    orderBy = 'rift_tier';
+                    break;
+                case 'ranked':
+                    orderBy = 'ranked_mmr';
+                    break;
+                case 'kills':
+                    orderBy = 'total_kills';
+                    break;
+                case 'wins':
+                    orderBy = 'total_wins';
+                    break;
+            }
+
+            const { data, error } = await supabase
+                .from('player_progression')
+                .select(`
+                    player_id,
+                    account_xp,
+                    rift_tier,
+                    total_wins,
+                    total_kills,
+                    total_deaths,
+                    ranked_mmr,
+                    ranked_tier,
+                    player:profiles(username, display_name)
+                `)
+                .order(orderBy, { ascending })
+                .limit(limit);
+
+            if (error) throw error;
+
+            // Transform to leaderboard entries
+            return (data || []).map((entry: any, index: number) => ({
+                rank: index + 1,
+                playerId: entry.player_id,
+                playerName: entry.player?.display_name || entry.player?.username || 'Unknown',
+                riftTier: entry.rift_tier || 0,
+                riftTierName: this.getRiftTierName(entry.rift_tier || 0),
+                accountLevel: Math.floor((entry.rift_tier || 0) * 10 + 5),
+                accountXP: entry.account_xp || 0,
+                rankedMMR: entry.ranked_mmr || 1000,
+                rankedTier: entry.ranked_tier || 'Unranked',
+                totalWins: entry.total_wins || 0,
+                totalKills: entry.total_kills || 0,
+                kdr: entry.total_deaths > 0
+                    ? +((entry.total_kills || 0) / entry.total_deaths).toFixed(2)
+                    : entry.total_kills || 0,
+            }));
+        } catch (error) {
+            console.error('Get leaderboard failed:', error);
+            return [];
+        }
+    }
+
+    private getRiftTierName(tier: number): string {
+        const names = [
+            'Initiate', 'Drifter', 'Voyager', 'Pathfinder', 'Navigator',
+            'Warden', 'Sentinel', 'Vanguard', 'Harbinger', 'Convergent', 'Rift Master'
+        ];
+        return names[Math.min(tier, names.length - 1)] || 'Initiate';
     }
 }
 

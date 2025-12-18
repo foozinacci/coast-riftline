@@ -186,8 +186,18 @@ export class PrivateMatch extends BaseScreen {
                     throw new Error('Failed to create lobby');
                 }
             } else {
-                // Offline mode: Just generate code
+                // Offline mode: Store lobby in localStorage for cross-tab sync
                 this.lobbyCode = code;
+                const lobbyData = {
+                    code: code,
+                    hostName: 'You',
+                    playerCount: 1,
+                    maxPlayers: this.maxPlayers,
+                    mode: this.selectedGameMode,
+                    createdAt: Date.now(),
+                };
+                localStorage.setItem(`riftline_lobby_${code}`, JSON.stringify(lobbyData));
+                console.log(`[PrivateMatch] Created lobby ${code} in localStorage`);
             }
 
             this.lobby = {
@@ -238,17 +248,29 @@ export class PrivateMatch extends BaseScreen {
                     this.errorMessage = 'Lobby not found';
                 }
             } else {
-                // Offline: Simulate join
-                this.lobby = {
-                    code: code,
-                    hostName: 'Host',
-                    playerCount: 2,
-                    maxPlayers: 6,
-                    mode: GameMode.ARENA_1V1,
-                    isHost: false,
-                };
-                this.mode = 'lobby';
-                this.clearButtons();
+                // Local broadcast mode for testing: Use localStorage to sync
+                const storedLobby = localStorage.getItem(`riftline_lobby_${code}`);
+                if (storedLobby) {
+                    const lobbyData = JSON.parse(storedLobby);
+                    this.lobby = {
+                        code: code,
+                        hostName: lobbyData.hostName || 'Host',
+                        playerCount: (lobbyData.playerCount || 1) + 1,
+                        maxPlayers: lobbyData.maxPlayers || 6,
+                        mode: lobbyData.mode || GameMode.ARENA_1V1,
+                        isHost: false,
+                    };
+
+                    // Update localStorage with new player count
+                    lobbyData.playerCount = this.lobby.playerCount;
+                    localStorage.setItem(`riftline_lobby_${code}`, JSON.stringify(lobbyData));
+
+                    console.log(`[PrivateMatch] Joined lobby ${code}`);
+                    this.mode = 'lobby';
+                    this.clearButtons();
+                } else {
+                    this.errorMessage = 'Lobby not found - check code';
+                }
             }
         } catch (error) {
             console.error('Join lobby failed:', error);

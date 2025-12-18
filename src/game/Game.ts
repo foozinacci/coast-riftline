@@ -19,13 +19,15 @@ import { Projectile } from '../entities/Projectile';
 import { Relic } from '../entities/Relic'; // Entity Class
 import { RelicState, RelicPlantSite } from '../core/types'; // Interfaces/Enums
 import { RespawnOrb } from '../entities/RespawnOrb';
-import { GameMap, Riftline, ProximityAwareness, SquadManager, SpawnVotingManager, generateSpawnLocations, PreGameAnimationManager, RelicManager, generateRelicSystem, VaultManager } from '../systems';
-import { HUD } from '../ui/HUD';
+import { GameMap, Riftline, ProximityAwareness, SquadManager, SpawnVotingManager, generateSpawnLocations, PreGameAnimationManager, PreGameIntelManager, RelicManager, generateRelicSystem, VaultManager, ArenaRoundSystem, getArenaRoundSystem, resetArenaRoundSystem } from '../systems';
+import { HUD, ArenaHUDState } from '../ui/HUD';
 import { ScreenManager } from '../ui/screens';
 import { AIController } from './AI';
-import { TrainingDifficulty, GameMode } from '../core/types';
+import { TrainingDifficulty, GameMode, MatchStructure } from '../core/types';
 import { getDebugOverlay, getObserverController, ObserverMode } from '../debug';
 import { getModeConfig, ModeConfig, isArenaMode } from '../core/modeConfig';
+import { preferences } from '../core/preferences';
+import { getAudio, initAudio, playWeaponFire, playHit, playSfx } from '../core/audio';
 
 export class Game {
   // Core systems
@@ -39,8 +41,10 @@ export class Game {
   private screenManager: ScreenManager;
   private spawnVotingManager: SpawnVotingManager | null;
   private preGameAnimManager: PreGameAnimationManager;
+  private preGameIntelManager: PreGameIntelManager;
   private relicManager: RelicManager;
   private vaultManager: VaultManager | null = null;
+  private arenaRoundSystem: ArenaRoundSystem | null = null;
 
   // Game state
   private phase: GamePhase;
@@ -62,9 +66,13 @@ export class Game {
 
   // Mode configuration (defines rules for current mode)
   private modeConfig: ModeConfig;
+  private matchStructure: MatchStructure = MatchStructure.BEST_OF_3;
 
   // Menu mode flag (when true, show menus instead of game)
   private useMenuSystem: boolean = true;
+
+  // Active match flag - prevents multiple simultaneous starts
+  private isMatchActive: boolean = false;
 
   // Debug and observer systems
   private debugOverlay = getDebugOverlay();
@@ -81,6 +89,7 @@ export class Game {
     this.screenManager = new ScreenManager(this.input.isMobileDevice());
     this.spawnVotingManager = null;
     this.preGameAnimManager = new PreGameAnimationManager();
+    this.preGameIntelManager = new PreGameIntelManager();
     // Initialize empty relic manager, will be reset in startTestGame
     this.relicManager = new RelicManager([], []);
 
@@ -109,12 +118,21 @@ export class Game {
 
   // Initialize a match with voting and animation sequence
   startTestGame(mode: GameMode = GameMode.MAIN, difficulty: TrainingDifficulty = TrainingDifficulty.MEDIUM): void {
+    // Prevent multiple simultaneous starts (fixes mobile double-tap issue)
+    if (this.isMatchActive) {
+      console.log('[Game.startTestGame] Match already active, ignoring duplicate start');
+      return;
+    }
+    this.isMatchActive = true;
+
     console.log('[Game.startTestGame] Starting game with mode:', mode, 'difficulty:', difficulty);
     this.useMenuSystem = true;
     this.mode = mode;
     this.difficulty = difficulty;
     this.phase = GamePhase.SPAWN_VOTE; // Start with voting
-    console.log('[Game.startTestGame] Set phase to SPAWN_VOTE');
+    this.isGameOver = false;
+    this.winningSquadId = null;
+    console.log('[Game.startTestGame] Set phase to SPAWN_VOTE, isMatchActive:', this.isMatchActive);
 
     // Generate relic system (relics + plant sites) - Only for Main/Training with Relics
     let relics: Relic[] = [];
@@ -148,7 +166,8 @@ export class Game {
     // Sync map with relic system
     this.map.relics = relics;
     this.map.plantSites = plantSites;
-    // this.relicManager.activateRelics(); // Moved to after HUD init or manually called
+    // Regenerate obstacles now that plant sites are known (prevents obstacle-in-plant-site bug)
+    this.map.regenerateObstacles();
 
     // HUD setup
     this.hud = new HUD(this.input.isMobileDevice());
@@ -194,6 +213,80 @@ export class Game {
 
     // Load mode configuration for selected game mode
     this.modeConfig = getModeConfig(this.mode);
+
+    // Initialize Arena Round System for arena modes
+    if (isArenaMode(this.mode)) {
+      resetArenaRoundSystem(); // Clear any previous arena match
+      this.arenaRoundSystem = getArenaRoundSystem();
+
+      // Set up arena callbacks
+      this.arenaRoundSystem.setOnRoundStart((round) => {
+        this.hud.addNotification(`ROUND ${round} START`, '#00ffff');
+        console.log(`[Game] Arena round ${round} started`);
+
+        // Update HUD state
+        this.hud.updateArenaState({
+          currentRound: round,
+          phase: 'combat',
+        });
+      });
+
+      this.arenaRoundSystem.setOnRoundEnd((round, winnerId) => {
+        const scores = this.arenaRoundSystem?.getScoreDisplay() || '';
+        this.hud.addNotification(`ROUND ${round} COMPLETE - ${scores}`, '#ffff00');
+        console.log(`[Game] Arena round ${round} ended, winner: ${winnerId}`);
+
+        // Update HUD state with new scores
+        if (this.arenaRoundSystem) {
+          const teamScores = new Map<string, number>();
+          for (const score of this.arenaRoundSystem.getAllScores()) {
+            teamScores.set(score.teamId, score.roundWins);
+          }
+          this.hud.updateArenaState({
+            phase: 'round_end',
+            teamScores,
+          });
+        }
+      });
+
+      this.arenaRoundSystem.setOnMatchEnd((winnerId) => {
+        console.log(`[Game] Arena match ended, winner: ${winnerId}`);
+        this.winningSquadId = winnerId;
+        this.isGameOver = true;
+        this.phase = GamePhase.GAME_OVER;
+        this.isMatchActive = false; // Allow rematch
+
+        // Update HUD state
+        this.hud.updateArenaState({
+          phase: 'match_end',
+        });
+
+        if (this.useMenuSystem && this.localPlayer) {
+          const isWinner = this.localPlayer.squadId === winnerId;
+          this.screenManager.setMatchResult(isWinner, this.localPlayer.stats);
+          this.screenManager.navigateTo(AppState.POST_MATCH);
+        }
+      });
+
+      this.arenaRoundSystem.setOnTimeWarning((seconds) => {
+        if (seconds <= 10) {
+          this.hud.addNotification(`${seconds} SECONDS REMAINING`, '#ff4444');
+        }
+
+        // Update time in HUD state
+        this.hud.updateArenaState({
+          timeRemaining: seconds,
+        });
+      });
+
+      // Round reset callback - reset players for next round
+      this.arenaRoundSystem.setOnRoundReset(() => {
+        this.resetPlayersForRound();
+      });
+    } else {
+      this.arenaRoundSystem = null;
+      this.hud.setArenaState(null); // Clear arena HUD for non-arena modes
+    }
 
     // Use mode config for team setup
     const teamCount = this.modeConfig.teamCount;
@@ -272,12 +365,13 @@ export class Game {
       ];
 
       if (squadId === playerSquad.id) {
-        // Create local player
+        // Create local player with saved class preference
+        const selectedClass = preferences.getSelectedClass();
         this.localPlayer = new Player(
           spawnPos.x + spawnOffsets[0].x,
           spawnPos.y + spawnOffsets[0].y,
           playerSquad.id,
-          PlayerClass.SCOUT,
+          selectedClass,
           playerSquad.color,
           true
         );
@@ -319,23 +413,177 @@ export class Game {
       console.warn("Local player not spawned from voting, using fallback");
       const fallbackSite = this.map.spawnSites[0];
       const p = fallbackSite.getSpawnPositions(1)[0];
-      this.localPlayer = new Player(p.x, p.y, playerSquad.id, PlayerClass.SCOUT, playerSquad.color, true);
+      const selectedClass = preferences.getSelectedClass();
+      this.localPlayer = new Player(p.x, p.y, playerSquad.id, selectedClass, playerSquad.color, true);
       this.squadManager.addPlayerToSquad(playerSquad.id, this.localPlayer);
     }
 
     this.riftline.setConvergencePoint(this.map.deliverySite.position);
 
-    // Start Animation
+    // Start Pre-Game Intel System
     if (this.localPlayer) {
-      this.phase = GamePhase.COUNTDOWN; // Use COUNTDOWN phase for animation
-      this.preGameAnimManager.start(this.localPlayer.position, this.map.relics);
-      this.preGameAnimManager.setOnComplete(() => {
-        this.phase = GamePhase.PLAYING;
-        // Show HUD message 'Match Started' ideally
+      this.phase = GamePhase.COUNTDOWN; // Use COUNTDOWN phase for intel/animation
+
+      // Start the new intel system
+      const mapCenter = { x: GAME_CONFIG.mapWidth / 2, y: GAME_CONFIG.mapHeight / 2 };
+      this.preGameIntelManager.start(
+        this.mode,
+        this.modeConfig,
+        this.difficulty,
+        mapCenter,
+        this.modeConfig.spawnVotingEnabled ? this.spawnVotingManager! : undefined
+      );
+
+      this.preGameIntelManager.setOnComplete(() => {
+        // For relic modes, show relic locations after intel
+        if (this.modeConfig.showRelicLocations && this.map.relics.length > 0) {
+          this.preGameAnimManager.start(this.localPlayer!.position, this.map.relics);
+          this.preGameAnimManager.setOnComplete(() => {
+            this.startGameplay();
+          });
+        } else {
+          // Arena/simple modes go directly to gameplay
+          this.startGameplay();
+        }
       });
     } else {
-      this.phase = GamePhase.PLAYING;
+      this.startGameplay();
     }
+  }
+
+  /**
+   * Start actual gameplay after intel/animations complete
+   */
+  private startGameplay(): void {
+    this.phase = GamePhase.PLAYING;
+
+    // Start arena match if in arena mode
+    if (this.arenaRoundSystem && isArenaMode(this.mode)) {
+      const teamIds = this.squadManager.getAllSquads().map(s => s.id);
+      this.arenaRoundSystem.startMatch(this.mode, this.matchStructure, teamIds);
+      this.hud.addNotification('ARENA MATCH BEGIN', '#00ffff');
+
+      // Initialize arena HUD state
+      this.initializeArenaHUDState(teamIds);
+    } else if (this.modeConfig.hasRelics) {
+      this.hud.addNotification('SECURE THE RELICS', '#ffaa00');
+    }
+  }
+
+  /**
+   * Initialize arena HUD state with team information
+   */
+  private initializeArenaHUDState(teamIds: string[]): void {
+    if (!this.arenaRoundSystem) return;
+
+    const totalRounds = this.matchStructure === MatchStructure.BEST_OF_5 ? 5 : 3;
+
+    // Create team score map
+    const teamScores = new Map<string, number>();
+    const teamNames = new Map<string, string>();
+    const teamColors = new Map<string, string>();
+
+    teamIds.forEach((teamId, index) => {
+      teamScores.set(teamId, 0);
+
+      // Get squad for color and name
+      const squad = this.squadManager.getSquad(teamId);
+      if (squad) {
+        teamNames.set(teamId, `Team ${index + 1}`);
+        teamColors.set(teamId, squad.color);
+      } else {
+        teamNames.set(teamId, `Team ${index + 1}`);
+        teamColors.set(teamId, index === 0 ? '#4488ff' : '#ff4444');
+      }
+    });
+
+    const arenaHUDState: ArenaHUDState = {
+      mode: this.mode,
+      currentRound: 1,
+      maxRounds: totalRounds,
+      teamScores,
+      teamNames,
+      teamColors,
+      phase: 'round_start',
+      timeRemaining: this.modeConfig?.roundTimeLimit || 180,
+      isActive: true,
+    };
+
+    this.hud.setArenaState(arenaHUDState);
+  }
+
+  /**
+   * Reset all players for the next arena round
+   * Respawns players at spawn points with full health
+   */
+  private resetPlayersForRound(): void {
+    if (!isArenaMode(this.mode)) return;
+
+    console.log('[Game] Resetting players for next round');
+    this.hud.addNotification('NEXT ROUND STARTING...', '#ffff00');
+
+    // Get all players and group by squad
+    const allPlayers = this.squadManager.getAllPlayers();
+    const squads = this.squadManager.getAllSquads();
+    const spawnSites = this.map.spawnSites;
+
+    // Create a map of squadId -> Player[]
+    const playersBySquad = new Map<string, typeof allPlayers>();
+    for (const player of allPlayers) {
+      if (!playersBySquad.has(player.squadId)) {
+        playersBySquad.set(player.squadId, []);
+      }
+      playersBySquad.get(player.squadId)!.push(player);
+    }
+
+    // Reset and respawn each squad
+    squads.forEach((squad, squadIndex) => {
+      const squadPlayers = playersBySquad.get(squad.id) || [];
+
+      // Get spawn site for this team (cycle through available sites)
+      const spawnSite = spawnSites[squadIndex % spawnSites.length];
+      const spawnPositions = spawnSite.getSpawnPositions(squadPlayers.length);
+
+      squadPlayers.forEach((player, playerIndex) => {
+        const spawnPos = spawnPositions[playerIndex % spawnPositions.length];
+
+        // Reset player state
+        player.state.isAlive = true;
+        player.state.health = player.state.maxHealth;
+        player.state.shield = 0; // Start fresh with no shield
+        player.state.invulnerabilityTimer = 1500; // Brief invulnerability on round start
+        player.position.x = spawnPos.x;
+        player.position.y = spawnPos.y;
+        player.velocity.x = 0;
+        player.velocity.y = 0;
+
+        // Reset weapon ammo
+        if (player.weapon) {
+          player.weapon.currentAmmo = player.weapon.config.magazineSize;
+          player.weapon.isReloading = false;
+          player.weapon.reloadTimer = 0;
+        }
+
+        // Reset dash charges and tactical
+        player.dashCharges = player.maxDashes;
+        player.dashRegenTimer = 0;
+        player.tacticalTimer = 0;
+        player.tacticalActive = false;
+
+        console.log(`[Game] Reset player ${player.id} at (${spawnPos.x.toFixed(0)}, ${spawnPos.y.toFixed(0)})`);
+      });
+    });
+
+    // Clear projectiles from previous round
+    this.projectiles = [];
+
+    // Clear any respawn orbs
+    this.respawnOrbs = [];
+
+    // Update HUD state
+    this.hud.updateArenaState({
+      phase: 'round_start',
+    });
   }
 
   update(): void {
@@ -365,13 +613,15 @@ export class Game {
     const navManager = getNavigationManager();
     const currentAppState = navManager.getCurrentState();
 
-    // Debug: Log state periodically
-    if (Math.random() < 0.01) {
-      console.log('[Game.fixedUpdate] AppState:', currentAppState, 'useMenuSystem:', this.useMenuSystem, 'phase:', this.phase);
+    // Debug: Log state periodically (less frequently to reduce spam)
+    if (Math.random() < 0.005) {
+      console.log('[Game.fixedUpdate] AppState:', currentAppState, 'isMatchActive:', this.isMatchActive, 'phase:', this.phase);
     }
 
     // If in menu system and not in active match, let screen manager handle input
-    if (this.useMenuSystem && currentAppState !== AppState.IN_MATCH) {
+    // Also check isMatchActive to handle the transition properly
+    const isMenuState = currentAppState !== AppState.IN_MATCH && currentAppState !== AppState.PAUSE_MENU;
+    if (this.useMenuSystem && isMenuState) {
       this.screenManager.handleInput(this.input);
       return;
     }
@@ -430,7 +680,16 @@ export class Game {
       return;
     }
 
-    // Pre-game animation update
+    // Pre-game intel update (new system)
+    if (this.preGameIntelManager.isActive()) {
+      this.preGameIntelManager.update(dt * 1000); // Expects ms
+      if (this.input.consumeConfirm()) {
+        this.preGameIntelManager.skip();
+      }
+      return; // Don't update game world during intel
+    }
+
+    // Pre-game animation update (relic reveal for Main mode)
     if (this.preGameAnimManager.isActive()) {
       this.preGameAnimManager.update(dt * 1000); // Expects ms
       if (this.input.consumeConfirm()) {
@@ -558,6 +817,27 @@ export class Game {
     // Check relic pickups and deliveries
     this.checkRelicInteractions();
 
+    // Update plant site distance for relic carriers (for HUD proximity indicator)
+    for (const player of allPlayers) {
+      if (player.hasRelic && player.state.isAlive) {
+        let minDist = Infinity;
+        for (const site of this.map.plantSites) {
+          if (!site.hasPlantedRelic) {
+            const dist = Math.sqrt(
+              Math.pow(player.position.x - site.position.x, 2) +
+              Math.pow(player.position.y - site.position.y, 2)
+            );
+            if (dist < minDist) {
+              minDist = dist;
+            }
+          }
+        }
+        player.nearestPlantSiteDistance = minDist === Infinity ? -1 : minDist;
+      } else {
+        player.nearestPlantSiteDistance = -1;
+      }
+    }
+
     // Update squad statuses
     for (const squad of this.squadManager.getAllSquads()) {
       this.squadManager.updateSquadStatus(squad.id, dt);
@@ -565,6 +845,11 @@ export class Game {
 
     // Check for respawns
     this.processRespawns();
+
+    // Update arena round system (if active)
+    if (this.arenaRoundSystem && this.arenaRoundSystem.isRoundActive()) {
+      this.arenaRoundSystem.update(dt * 1000); // Convert to ms
+    }
 
     // Check win condition
     this.checkWinCondition();
@@ -622,6 +907,13 @@ export class Game {
     // Screen shake for local player
     if (player === this.localPlayer) {
       this.renderer.addScreenShake(2);
+      // Play weapon fire sound
+      playWeaponFire(player.weapon.config.name, 0);
+    } else {
+      // Positional audio for other players
+      const dx = player.position.x - (this.localPlayer?.position.x || 0);
+      const pan = Math.max(-1, Math.min(1, dx / 500));
+      playWeaponFire(player.weapon.config.name, pan);
     }
   }
 
@@ -643,6 +935,7 @@ export class Game {
           { x: player.position.x, y: player.position.y, radius: player.radius }
         )) {
           // Hit!
+          const wasAlive = player.state.isAlive;
           const damage = player.takeDamage(projectile.damage, projectile.ownerId);
 
           // Track damage for shooter
@@ -650,11 +943,24 @@ export class Game {
           if (shooter) {
             shooter.stats.damageDealt += damage;
 
+            // Add floating damage number at hit location
+            if (this.hud && damage > 0) {
+              this.hud.addScoreAnimation(
+                `-${damage}`,
+                player.position.x,
+                player.position.y - 30,
+                '#ff6666'
+              );
+            }
+
             // Check for kill
-            if (!player.state.isAlive) {
+            if (wasAlive && !player.state.isAlive) {
               shooter.stats.kills++;
 
-              shooter.stats.kills++;
+              // Register kill for streak tracking
+              if (this.hud && shooter === this.localPlayer) {
+                this.hud.registerKill();
+              }
 
               // Kill Feed
               const shooterName = shooter.name || 'Unknown';
@@ -668,9 +974,27 @@ export class Game {
             }
           }
 
-          // Screen shake on hit
+          // Screen shake and damage indicator for local player
           if (player === this.localPlayer) {
             this.renderer.addScreenShake(5);
+
+            // Add damage direction indicator
+            if (this.hud) {
+              const dx = projectile.position.x - player.position.x;
+              const dy = projectile.position.y - player.position.y;
+              const angle = Math.atan2(dy, dx);
+              this.hud.addDamageIndicator(angle, damage / 20);
+            }
+
+            // Hit sound for local player taking damage
+            playHit(damage, 0);
+          }
+
+          // Play death sound if player died
+          if (wasAlive && !player.state.isAlive) {
+            const dx = player.position.x - (this.localPlayer?.position.x || 0);
+            const pan = Math.max(-1, Math.min(1, dx / 500));
+            playSfx('death', { pan });
           }
 
           projectile.destroy();
@@ -857,11 +1181,38 @@ export class Game {
   }
 
   private checkWinCondition(): void {
+    // For arena modes, squad elimination ends the round, not the match
+    if (this.arenaRoundSystem && isArenaMode(this.mode)) {
+      // Check for team elimination
+      const aliveSquads = this.squadManager.getAliveSquads();
+
+      if (aliveSquads.length === 1 && this.arenaRoundSystem.isRoundActive()) {
+        // One team left standing - they win this round
+        const roundWinner = aliveSquads[0].id;
+        this.arenaRoundSystem.endRound(roundWinner);
+
+        // Reset players for next round (if match not over)
+        if (!this.arenaRoundSystem.isMatchOver()) {
+          // We'll handle respawning in the next round start callback
+          // For now, just mark that the round ended
+          console.log(`[Game] Round ended, preparing for next round...`);
+        }
+      } else if (aliveSquads.length === 0 && this.arenaRoundSystem.isRoundActive()) {
+        // Mutual elimination - tie round (handled by time expiry logic in ArenaRoundSystem)
+        console.log(`[Game] Mutual elimination detected`);
+      }
+
+      // Don't proceed with normal win check for arena modes
+      return;
+    }
+
+    // Standard win condition for non-arena modes
     const winner = this.squadManager.checkForWinner();
     if (winner) {
       this.isGameOver = true;
       this.winningSquadId = winner.id;
       this.phase = GamePhase.GAME_OVER;
+      this.isMatchActive = false; // Allow rematch
 
       // If using menu system, transition to post-match screen
       if (this.useMenuSystem && this.localPlayer) {
@@ -946,9 +1297,13 @@ export class Game {
             }
           }
 
+        } else if (this.preGameIntelManager.isActive()) {
+          // Render new Pre-Game Intel overlay
+          this.preGameIntelManager.render(this.renderer, screenSize.x, screenSize.y);
         } else if (this.preGameAnimManager.isActive()) {
-          // Draw skipping text
-          this.renderer.drawScreenText(`PRE-GAME INTEL`, screenSize.x / 2, 100, '#ffff00', 24, 'center');
+          // Render relic reveal animation text
+          this.renderer.drawScreenText(`RELIC LOCATIONS`, screenSize.x / 2, 100, '#ffaa00', 24, 'center');
+          this.renderer.drawScreenText(`Press SPACE to skip`, screenSize.x / 2, screenSize.y - 50, '#666', 14, 'center');
         } else {
           // Normal HUD
           const riftlineState = this.riftline.getState();
@@ -1016,10 +1371,12 @@ export class Game {
   }
 
   private resetToLobby(): void {
+    console.log('[Game.resetToLobby] Resetting game state');
     this.phase = GamePhase.LOBBY;
     this.isGameOver = false;
     this.winningSquadId = null;
     this.useMenuSystem = true;
+    this.isMatchActive = false; // Allow new matches
 
     this.localPlayer = null;
     this.projectiles = [];
@@ -1030,6 +1387,7 @@ export class Game {
     this.map = new GameMap();
     this.riftline = new Riftline(GAME_CONFIG.mapWidth, GAME_CONFIG.mapHeight);
     this.proximityAwareness = new ProximityAwareness();
+    this.preGameIntelManager.reset();
 
     // Return to main menu
     this.screenManager.navigateTo(AppState.MAIN_MENU);

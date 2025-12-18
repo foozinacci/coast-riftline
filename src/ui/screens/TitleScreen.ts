@@ -3,6 +3,7 @@
 
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { AppState } from '../../core/types';
+import { initAudio, playUI, playMusic } from '../../core/audio';
 
 const LOGO_URL = 'https://i.ibb.co/VYbnBQjD/ei-1765901346915-removebg-preview.png';
 
@@ -86,7 +87,7 @@ export class TitleScreen extends BaseScreen {
         // Tagline
         const taglineY = this.logoLoaded ? titleY + 120 : titleY + 60;
         renderer.drawScreenText(
-            'Squad-Based Battle Royale',
+            'An Arcade of Arenas',
             screenWidth / 2,
             taglineY,
             'rgba(150, 160, 180, 1)',
@@ -99,7 +100,7 @@ export class TitleScreen extends BaseScreen {
         const promptY = screenHeight * 0.65;
         const alpha = 0.5 + Math.sin(this.animationTime * 3) * 0.3;
 
-        const promptText = ctx.isMobile ? 'TAP TO START' : 'PRESS ENTER OR CLICK TO START';
+        const promptText = ctx.isMobile ? 'TAP TO START' : 'CLICK TO START';
         renderer.drawScreenText(
             promptText,
             screenWidth / 2,
@@ -163,6 +164,14 @@ export class TitleScreen extends BaseScreen {
     }
 
     handleConfirm(): void {
+        // Initialize audio system on first user interaction (browser requirement)
+        initAudio().then(() => {
+            console.log('[TitleScreen] Audio initialized');
+            playUI('confirm');
+            // Start lobby music immediately after audio init
+            playMusic('lobby');
+        });
+
         // Navigate to main menu on any confirm action
         this.navigation.navigateTo(AppState.MAIN_MENU);
     }

@@ -65,6 +65,7 @@ export class Player extends Entity {
   // Relic carrying
   hasRelic: boolean;
   relicRevealTimer: number;
+  nearestPlantSiteDistance: number; // Distance to nearest plant site (for HUD)
 
   // Respawn orbs
   orbCount: number;
@@ -148,6 +149,7 @@ export class Player extends Entity {
     this.backpackTier = BackpackTier.BASIC;
     this.hasRelic = false;
     this.relicRevealTimer = 0;
+    this.nearestPlantSiteDistance = -1; // -1 means no data
     this.orbCount = 0;
     this.lastDamageTime = 0;
 

@@ -19,6 +19,15 @@ import { LobbyScreen } from './LobbyScreen';
 import { CustomizeMenu } from './CustomizeMenu';
 import { ClassSelectScreen } from './ClassSelectScreen';
 import { PrivateMatch } from './PrivateMatch';
+import { PartyScreen } from './PartyScreen';
+import { FriendsScreen } from './FriendsScreen';
+import { ProgressionScreen } from './ProgressionScreen';
+import { LeaderboardScreen } from './LeaderboardScreen';
+import { MKBBindingsScreen } from './MKBBindingsScreen';
+import { ControllerBindingsScreen } from './ControllerBindingsScreen';
+import { TouchSettingsScreen } from './TouchSettingsScreen';
+import { AudioSettings } from './AudioSettings';
+import { MatchmakingScreen } from './MatchmakingScreen';
 
 import { GameMode, TrainingDifficulty } from '../../core/types';
 
@@ -88,6 +97,15 @@ export class ScreenManager {
         this.screens.set(AppState.CUSTOMIZE_MENU, new CustomizeMenu());
         this.screens.set(AppState.CLASS_SELECT, new ClassSelectScreen());
         this.screens.set(AppState.PRIVATE_MATCH, this.privateMatch);
+        this.screens.set(AppState.PARTY, new PartyScreen());
+        this.screens.set(AppState.FRIENDS, new FriendsScreen());
+        this.screens.set(AppState.PROFILE, new ProgressionScreen());
+        this.screens.set(AppState.LEADERBOARD, new LeaderboardScreen());
+        this.screens.set(AppState.MKB_BINDINGS, new MKBBindingsScreen());
+        this.screens.set(AppState.CONTROLLER_BINDINGS, new ControllerBindingsScreen());
+        this.screens.set(AppState.TOUCH_SETTINGS, new TouchSettingsScreen());
+        this.screens.set(AppState.AUDIO_SETTINGS, new AudioSettings());
+        this.screens.set(AppState.MATCHMAKING, new MatchmakingScreen());
     }
 
     /**
@@ -164,6 +182,16 @@ export class ScreenManager {
         }
 
         if (!this.currentScreen) return;
+
+        // Handle raw key input for text entry (lobby codes, etc.)
+        const rawKey = input.consumeRawKey();
+        if (rawKey && this.currentScreen) {
+            // Check if screen has handleKeyInput method
+            const screen = this.currentScreen as any;
+            if (typeof screen.handleKeyInput === 'function') {
+                screen.handleKeyInput(rawKey);
+            }
+        }
 
         // Handle mouse/touch focus FIRST (before confirm, so taps work on mobile)
         const mousePos = input.getMousePosition();

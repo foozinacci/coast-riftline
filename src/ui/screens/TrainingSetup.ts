@@ -3,6 +3,7 @@
 
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { AppState, GameMode, TrainingDifficulty } from '../../core/types';
+import { stopMusic } from '../../core/audio';
 
 // Callback type for starting training
 type StartTrainingCallback = (mode: GameMode, difficulty: TrainingDifficulty) => void;
@@ -67,6 +68,8 @@ export class TrainingSetup extends BaseScreen {
                 label: 'START TRAINING',
                 onSelect: () => {
                     if (this.startTrainingCallback) {
+                        // Fade out lobby music
+                        stopMusic();
                         this.startTrainingCallback(this.selectedMode, this.selectedDifficulty);
                         this.navigation.forceNavigateTo(AppState.IN_MATCH);
                     }

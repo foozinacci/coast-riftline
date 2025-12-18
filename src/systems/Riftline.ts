@@ -174,8 +174,7 @@ export class Riftline {
       );
     }
 
-    // Draw phase indicator at top of screen
-    this.renderPhaseIndicator(renderer);
+    // NOTE: Phase indicator is rendered by HUD.renderRiftlineInfo() to avoid duplicates
   }
 
   private renderDangerZone(renderer: Renderer): void {
@@ -206,22 +205,5 @@ export class Riftline {
     ctx.fill();
 
     ctx.restore();
-  }
-
-  private renderPhaseIndicator(renderer: Renderer): void {
-    const screen = renderer.getScreenSize();
-    const x = screen.x / 2;
-    const y = 60;
-
-    // Phase name
-    const phaseName = this.state.phase.toUpperCase();
-    renderer.drawScreenText(phaseName, x, y, COLORS.riftline, 14, 'center', 'middle');
-
-    // Timer
-    const timeLeft = Math.ceil(this.state.phaseTimer / 1000);
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    renderer.drawScreenText(timeStr, x, y + 20, '#ffffff', 18, 'center', 'middle');
   }
 }

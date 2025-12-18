@@ -244,7 +244,8 @@ export class AIController {
 
     // Aim at enemy
     const direction = subVec2(this.targetEnemy.position, this.player.position);
-    this.player.aimDirection = normalizeVec2(direction);
+    const normalizedDir = normalizeVec2(direction);
+    this.player.aimDirection = normalizedDir;
 
     // Movement based on class and range
     const optimalRange = this.getOptimalRange();
@@ -253,15 +254,18 @@ export class AIController {
       // Move closer
       this.moveTowards(this.targetEnemy.position, 0.8);
     } else if (distance < optimalRange - 50) {
-      // Back up
-      const away = mulVec2(normalizeVec2(direction), -1);
+      // Back up (properly normalized and scaled)
+      const away = mulVec2(normalizedDir, -0.6);
       this.player.velocity = away;
     } else {
-      // Strafe
-      const strafe = Math.sin(Date.now() * 0.003) > 0 ? 1 : -1;
+      // Strafe - use stateTimer for smoother movement
+      this.stateTimer += _dt * 1000;
+      const strafePhase = Math.sin(this.stateTimer * 0.002);
+      const strafeDir = strafePhase > 0 ? 1 : -1;
+      // Perpendicular to aim direction
       this.player.velocity = {
-        x: -direction.y * strafe * 0.5,
-        y: direction.x * strafe * 0.5,
+        x: -normalizedDir.y * strafeDir * 0.5,
+        y: normalizedDir.x * strafeDir * 0.5,
       };
     }
 

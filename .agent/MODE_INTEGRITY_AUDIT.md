@@ -1,16 +1,68 @@
 # RIFTLINE Game Mode Integrity Audit
-Generated: 2025-12-17
+Generated: 2025-12-17 (Updated with Full Spec)
+
+## Recent Fixes Applied
+
+### ✅ Fixed Issues
+1. **Duplicate Timer Display** - Removed timer rendering from Riftline.ts (HUD handles it)
+2. **Mobile Start Loop** - Added `isMatchActive` guard to prevent double-start on tap
+3. **Pinch Zoom** - Disabled per spec A6 (zoom via +/- buttons only)
+4. **Arena Round System** - New system created at `src/systems/ArenaRoundSystem.ts`
+5. **Party System** - New system created at `src/network/party.ts`
+6. **Database Migration** - New migration at `supabase/migration_matchmaking.sql`
+
+---
+
+## Spec Reference: Shared Core Systems (ALL Modes)
+
+### Core Combat & Movement (Non-Negotiable)
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Top-down perspective | ✅ Implemented | `Renderer.ts` |
+| Manual aim only (no autofire baseline) | ✅ Implemented | `input.ts` |
+| Manual reload (rarity exceptions) | ✅ Implemented | Weapon system |
+| Cover-based gameplay | ⚠️ Partial | Obstacles exist, cover not formalized |
+| Verticality via obstacles | ⚠️ Partial | Map generation has obstacles |
+
+### Health & Survival
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Health + Shields | ✅ Implemented | Player class |
+| Shields absorb first | ✅ Implemented | Damage calculation |
+| Passive health regen (2-3s delay) | ✅ Implemented | `HealingSystem.ts` |
+| Regen stops on damage/firing/objective | ✅ Implemented | HealingSystem checks |
+| Shields don't regen passively (unless boosted) | ✅ Implemented | Only health regens |
+
+### Respawn System (Wildcard-Inspired)
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Respawn while teammate alive | ✅ Implemented | `RespawnSystem.ts` |
+| Respawn near safest teammate | ✅ Implemented | Position calculation |
+| Never in enemy line of sight | ⚠️ Approximate | Checks proximity |
+| Cooldown increases per phase | ⚠️ Basic | Needs phase tie-in |
+| Orb collection reduces cooldown | ✅ Implemented | Orb economy |
+| Respawn beacons (one-time) | ✅ Implemented | Beacon objects |
+
+### Ring / Riftline Logic
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Ring always exists | ✅ Implemented | `Riftline.ts` |
+| Entering ring = damage | ✅ Implemented | Environment damage |
+| Layered rings = higher damage | ✅ Implemented | `RiftlineEscalation.ts` |
+| Rings force forward momentum | ✅ Design correct | Convergence on vault |
+
+---
 
 ## Current Mode Status Summary
 
 | Mode | Config | Offline/Bots | Online Ready | Issues |
 |------|--------|--------------|--------------|--------|
-| MAIN | ✅ | ⚠️ Untested | ❌ Not wired | Loop back to title on mobile |
-| ARENA 1v1 | ✅ | ⚠️ Untested | ❌ Not wired | Same issue |
-| ARENA 1v1v1 | ✅ | ⚠️ Untested | ❌ Not wired | Same issue |
-| ARENA 3v3 | ✅ | ⚠️ Untested | ❌ Not wired | Same issue |
-| ARENA 3v3v3 | ✅ | ⚠️ Untested | ❌ Not wired | Same issue |
-| TRAINING | ✅ | ⚠️ Untested | N/A (Solo) | Same issue |
+| MAIN | ✅ | ✅ Fixed | ❌ Not wired | - |
+| ARENA 1v1 | ✅ | ✅ Fixed | ❌ Not wired | Round system ready |
+| ARENA 1v1v1 | ✅ | ✅ Fixed | ❌ Not wired | Round system ready |
+| ARENA 3v3 | ✅ | ✅ Fixed | ❌ Not wired | Round system ready |
+| ARENA 3v3v3 | ✅ | ✅ Fixed | ❌ Not wired | Round system ready |
+| TRAINING | ✅ | ✅ Fixed | N/A (Solo) | - |
 
 ---
 

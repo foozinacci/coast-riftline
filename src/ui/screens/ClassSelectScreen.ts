@@ -3,6 +3,7 @@
 
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { AppState, PlayerClass } from '../../core/types';
+import { preferences } from '../../core/preferences';
 
 interface ClassInfo {
     class: PlayerClass;
@@ -56,7 +57,10 @@ export class ClassSelectScreen extends BaseScreen {
     }
 
     onEnter(): void {
-        this.selectedIndex = 0;
+        // Load saved class selection
+        const savedClass = preferences.getSelectedClass();
+        this.selectedIndex = CLASS_INFO.findIndex(info => info.class === savedClass);
+        if (this.selectedIndex < 0) this.selectedIndex = 0;
         this.animationTime = 0;
         super.onEnter();
     }
@@ -79,8 +83,8 @@ export class ClassSelectScreen extends BaseScreen {
 
     private selectClass(index: number): void {
         this.selectedIndex = index;
-        // TODO: Save selected class to player preferences
-        console.log(`Selected class: ${CLASS_INFO[index].name}`);
+        // Save selected class to player preferences
+        preferences.setSelectedClass(CLASS_INFO[index].class);
     }
 
     render(ctx: ScreenContext): void {

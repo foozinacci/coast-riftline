@@ -28,45 +28,51 @@ export function generateRelicSystem(
     const spawnRadius = Math.min(mapWidth, mapHeight) * 0.35;
     const plantRadius = Math.min(mapWidth, mapHeight) * 0.25;
 
+    // Helper to find valid position near target
+    const findValidPosition = (targetX: number, targetY: number, checkRadius: number): { x: number; y: number } => {
+        if (!isValidPos || isValidPos({ x: targetX, y: targetY }, checkRadius)) {
+            return { x: targetX, y: targetY };
+        }
+
+        // Spiral search outward from target position
+        for (let searchRadius = 50; searchRadius <= 300; searchRadius += 50) {
+            for (let attempt = 0; attempt < 16; attempt++) {
+                const searchAngle = (attempt / 16) * Math.PI * 2;
+                const testX = targetX + Math.cos(searchAngle) * searchRadius;
+                const testY = targetY + Math.sin(searchAngle) * searchRadius;
+
+                if (isValidPos({ x: testX, y: testY }, checkRadius)) {
+                    return { x: testX, y: testY };
+                }
+            }
+        }
+
+        // Fallback: return original (shouldn't happen often)
+        console.warn('[RelicSystem] Could not find valid position, using original');
+        return { x: targetX, y: targetY };
+    };
+
     for (let i = 0; i < count; i++) {
         const angle = (i / count) * Math.PI * 2;
 
         // Relic spawn position (outer ring) with validation
-        let spawnX = centerX + Math.cos(angle) * spawnRadius;
-        let spawnY = centerY + Math.sin(angle) * spawnRadius;
-
-        // Try to find valid spawn if obstructed
-        if (isValidPos) {
-            let offset = 0;
-            // Scan around the point
-            while (!isValidPos({ x: spawnX, y: spawnY }, 30) && offset < 50) {
-                offset += 10;
-                spawnX += randomRange(-offset, offset);
-                spawnY += randomRange(-offset, offset);
-            }
-        }
+        const targetSpawnX = centerX + Math.cos(angle) * spawnRadius;
+        const targetSpawnY = centerY + Math.sin(angle) * spawnRadius;
+        const spawn = findValidPosition(targetSpawnX, targetSpawnY, 40);
 
         // Plant site position (inner ring, offset from spawn)
-        const plantAngle = angle + Math.PI / count; // Offset so sites aren't at spawns
-        let plantX = centerX + Math.cos(plantAngle) * plantRadius;
-        let plantY = centerY + Math.sin(plantAngle) * plantRadius;
-
-        if (isValidPos) {
-            let offset = 0;
-            while (!isValidPos({ x: plantX, y: plantY }, 60) && offset < 50) { // Larger radius for plant site
-                offset += 10;
-                plantX += randomRange(-offset, offset);
-                plantY += randomRange(-offset, offset);
-            }
-        }
+        const plantAngle = angle + Math.PI / count;
+        const targetPlantX = centerX + Math.cos(plantAngle) * plantRadius;
+        const targetPlantY = centerY + Math.sin(plantAngle) * plantRadius;
+        const plant = findValidPosition(targetPlantX, targetPlantY, 80);
 
         const relicId = `relic_${i}`;
         const siteId = `plant_site_${i}`;
 
         // Create Relic Entity
-        const relic = new Relic(spawnX, spawnY);
+        const relic = new Relic(spawn.x, spawn.y);
         relic.id = relicId;
-        relic.spawnPosition = { x: spawnX, y: spawnY };
+        relic.spawnPosition = { x: spawn.x, y: spawn.y };
         relic.plantSiteId = siteId;
         relic.state = RelicState.AVAILABLE;
         relic.carrierId = null;
@@ -77,11 +83,11 @@ export function generateRelicSystem(
 
         plantSites.push({
             id: siteId,
-            position: { x: plantX, y: plantY },
-            radius: 80, // Increased for easier planting
+            position: { x: plant.x, y: plant.y },
+            radius: 80,
             linkedRelicId: relicId,
             hasPlantedRelic: false,
-            safeZoneRadius: 200, // Relic ring radius when planted
+            safeZoneRadius: 200,
             safeZoneActive: false,
         });
     }

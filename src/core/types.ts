@@ -48,9 +48,15 @@ export enum AppState {
   CONTROLS_MENU = 'controls_menu',
   CONTROLLER_BINDINGS = 'controller_bindings',
   MKB_BINDINGS = 'mkb_bindings',
+  TOUCH_SETTINGS = 'touch_settings',
+  AUDIO_SETTINGS = 'audio_settings',
+  LEADERBOARD = 'leaderboard',
 
   // Lobby & Matchmaking
   LOBBY = 'lobby',
+  PARTY = 'party',
+  FRIENDS = 'friends',
+  PROFILE = 'profile',
   MATCHMAKING = 'matchmaking',
   CONNECTING = 'connecting',
 
