@@ -136,6 +136,13 @@ export class InputManager {
     if (bindings.isKeyForAction(e.code, 'interact')) {
       this.inputState.interact = false;
     }
+    // CRITICAL: Reset back/confirm on key release to prevent navigation loops
+    if (bindings.isKeyForAction(e.code, 'back') || bindings.isKeyForAction(e.code, 'pause')) {
+      this.inputState.back = false;
+    }
+    if (bindings.isKeyForAction(e.code, 'confirm')) {
+      this.inputState.confirm = false;
+    }
   }
 
   private onMouseMove(e: MouseEvent): void {
