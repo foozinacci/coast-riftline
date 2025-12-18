@@ -29,6 +29,7 @@ import { getDebugOverlay, getObserverController, ObserverMode } from '../debug';
 import { getModeConfig, ModeConfig, isArenaMode } from '../core/modeConfig';
 import { preferences } from '../core/preferences';
 import { getAudio, initAudio, playWeaponFire, playHit, playSfx } from '../core/audio';
+import { BubbleZone, generateBubbleZones } from '../entities/BubbleZone';
 
 export class Game {
   // Core systems
@@ -54,7 +55,7 @@ export class Game {
   private localPlayer: Player | null;
   private projectiles: Projectile[];
   private respawnOrbs: RespawnOrb[];
-  private bubbleZones: import('../entities/BubbleZone').BubbleZone[] = [];
+  private bubbleZones: BubbleZone[] = [];
   private aiControllers: Map<string, AIController>;
 
   // Timing
@@ -218,7 +219,6 @@ export class Game {
 
     // Generate Bubble Zones for Main mode
     if (this.modeConfig.hasBubbleZones && relics.length > 0) {
-      const { generateBubbleZones } = require('../entities/BubbleZone');
       const squads = this.squadManager.getAllSquads();
 
       // Create team pairs (every 2 squads form a pair)
