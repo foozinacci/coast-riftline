@@ -1,5 +1,5 @@
-// Class Select Screen
-// Spec B.18 subsection: Choose your class before matching
+// Rifter Select Screen
+// Spec B.18 subsection: Choose your Rifter before matching
 
 import { BaseScreen, ScreenContext } from './BaseScreen';
 import { AppState, PlayerClass } from '../../core/types';
@@ -99,13 +99,13 @@ export class ClassSelectScreen extends BaseScreen {
         renderer.drawScreenRect(0, 0, screenWidth, screenHeight, 'rgba(15, 18, 25, 1)');
 
         // Title
-        this.renderTitle(ctx, 'SELECT CLASS');
+        this.renderTitle(ctx, 'SELECT RIFTER');
 
         // Render buttons on left side
         this.renderButtons(ctx);
 
-        // Render class preview on right side
-        this.renderClassPreview(ctx);
+        // Render Rifter preview on right side
+        this.renderRifterPreview(ctx);
 
         // Footer hint
         renderer.drawScreenText(
@@ -119,7 +119,7 @@ export class ClassSelectScreen extends BaseScreen {
         );
     }
 
-    private renderClassPreview(ctx: ScreenContext): void {
+    private renderRifterPreview(ctx: ScreenContext): void {
         const { renderer, screenWidth, screenHeight, focusState } = ctx;
 
         // Find which class is highlighted (based on focus)

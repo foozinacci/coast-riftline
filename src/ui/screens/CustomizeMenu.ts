@@ -16,28 +16,42 @@ export class CustomizeMenu extends BaseScreen {
     private setupButtons(ctx: ScreenContext): void {
         this.layoutButtonsVertical([
             {
-                id: 'btn-class-select',
-                label: 'SELECT CLASS',
+                id: 'btn-rifter-select',
+                label: 'SELECT RIFTER',
                 onSelect: () => this.navigation.navigateTo(AppState.CLASS_SELECT),
             },
             {
-                id: 'btn-team-colors',
-                label: 'TEAM COLORS',
-                onSelect: () => console.log('Team colors'),
-                disabled: true,
+                id: 'btn-weapons',
+                label: 'WEAPONS',
+                onSelect: () => console.log('Weapons customization'),
+                disabled: true, // TODO: Implement weapon selection
             },
             {
-                id: 'btn-loadouts',
-                label: 'LOADOUTS',
-                onSelect: () => console.log('Loadouts'),
-                disabled: true,
+                id: 'btn-loadout-1',
+                label: 'LOADOUT 1',
+                onSelect: () => console.log('Loadout 1 selected'),
+            },
+            {
+                id: 'btn-loadout-2',
+                label: 'LOADOUT 2',
+                onSelect: () => console.log('Loadout 2 selected'),
+            },
+            {
+                id: 'btn-loadout-3',
+                label: 'LOADOUT 3',
+                onSelect: () => console.log('Loadout 3 selected'),
+            },
+            {
+                id: 'btn-loadout-4',
+                label: 'LOADOUT 4',
+                onSelect: () => console.log('Loadout 4 selected'),
             },
             {
                 id: 'btn-back',
                 label: 'BACK',
                 onSelect: () => this.navigation.goBack(),
             },
-        ], ctx, ctx.screenHeight * 0.35);
+        ], ctx, ctx.screenHeight * 0.2);
     }
 
     render(ctx: ScreenContext): void {

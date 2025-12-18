@@ -21,31 +21,16 @@ export class SettingsRoot extends BaseScreen {
                 onSelect: () => this.navigation.navigateTo(AppState.CONTROLS_MENU),
             },
             {
-                id: 'btn-gameplay',
-                label: 'GAMEPLAY',
-                onSelect: () => console.log('Gameplay settings - coming soon'),
-            },
-            {
                 id: 'btn-audio',
                 label: 'AUDIO',
                 onSelect: () => this.navigation.navigateTo(AppState.AUDIO_SETTINGS),
-            },
-            {
-                id: 'btn-video',
-                label: 'VIDEO',
-                onSelect: () => console.log('Video settings - coming soon'),
-            },
-            {
-                id: 'btn-accessibility',
-                label: 'ACCESSIBILITY',
-                onSelect: () => console.log('Accessibility settings - coming soon'),
             },
             {
                 id: 'btn-back',
                 label: 'BACK',
                 onSelect: () => this.navigation.goBack(),
             },
-        ], ctx, ctx.screenHeight * 0.25);
+        ], ctx, ctx.screenHeight * 0.3);
     }
 
     render(ctx: ScreenContext): void {
