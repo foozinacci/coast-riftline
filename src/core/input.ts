@@ -2,6 +2,7 @@
 
 import { Vector2, InputState, TouchState } from './types';
 import { vec2, normalizeVec2, subVec2 } from './utils';
+import { getKeyBindings, KeyBindingsManager } from './keybindings';
 
 export class InputManager {
   private canvas: HTMLCanvasElement;
@@ -101,24 +102,25 @@ export class InputManager {
       this.lastKeyPressed = e.key;
     }
 
-    if (e.code === 'KeyR') {
+    const bindings = getKeyBindings();
+
+    // Use keybindings for all actions
+    if (bindings.isKeyForAction(e.code, 'reload')) {
       this.inputState.isReloading = true;
     }
-    if (e.code === 'KeyE' || e.code === 'KeyF') {
+    if (bindings.isKeyForAction(e.code, 'interact')) {
       this.inputState.interact = true;
     }
-    if (e.code === 'Escape') {
+    if (bindings.isKeyForAction(e.code, 'back') || bindings.isKeyForAction(e.code, 'pause')) {
       this.inputState.back = true;
     }
-    // Confirm actions (Enter, Space)
-    if (e.code === 'Enter' || e.code === 'Space') {
+    if (bindings.isKeyForAction(e.code, 'confirm')) {
       this.inputState.confirm = true;
     }
-    // Keyboard zoom (=/- or +/-, per spec A6)
-    if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+    if (bindings.isKeyForAction(e.code, 'zoom_in')) {
       this.inputState.zoom = Math.min(2, this.inputState.zoom + 0.1);
     }
-    if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+    if (bindings.isKeyForAction(e.code, 'zoom_out')) {
       this.inputState.zoom = Math.max(0.5, this.inputState.zoom - 0.1);
     }
   }
@@ -126,10 +128,12 @@ export class InputManager {
   private onKeyUp(e: KeyboardEvent): void {
     this.keys.delete(e.code);
 
-    if (e.code === 'KeyR') {
+    const bindings = getKeyBindings();
+
+    if (bindings.isKeyForAction(e.code, 'reload')) {
       this.inputState.isReloading = false;
     }
-    if (e.code === 'KeyE' || e.code === 'KeyF') {
+    if (bindings.isKeyForAction(e.code, 'interact')) {
       this.inputState.interact = false;
     }
   }
@@ -390,13 +394,19 @@ export class InputManager {
   }
 
   update(playerScreenPos: Vector2): void {
-    // Update keyboard movement (WASD)
+    const bindings = getKeyBindings();
+
+    // Update keyboard movement (using keybindings)
     if (!this.isMobile || this.touchState.moveTouchId === null) {
       const move = vec2();
-      if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) move.y -= 1;
-      if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) move.y += 1;
-      if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) move.x -= 1;
-      if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) move.x += 1;
+
+      // Check all keys against bindings
+      for (const keyCode of this.keys) {
+        if (bindings.isKeyForAction(keyCode, 'move_up')) move.y -= 1;
+        if (bindings.isKeyForAction(keyCode, 'move_down')) move.y += 1;
+        if (bindings.isKeyForAction(keyCode, 'move_left')) move.x -= 1;
+        if (bindings.isKeyForAction(keyCode, 'move_right')) move.x += 1;
+      }
 
       if (move.x !== 0 || move.y !== 0) {
         this.inputState.moveDirection = normalizeVec2(move);
@@ -413,11 +423,11 @@ export class InputManager {
       }
     }
 
-    // Update dash (Shift key)
-    this.inputState.dash = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+    // Update dash (using keybindings)
+    this.inputState.dash = Array.from(this.keys).some(k => bindings.isKeyForAction(k, 'dash'));
 
-    // Update tactical (Q key)
-    this.inputState.tactical = this.keys.has('KeyQ');
+    // Update tactical (using keybindings)
+    this.inputState.tactical = Array.from(this.keys).some(k => bindings.isKeyForAction(k, 'tactical'));
 
     // Gamepad input
     this.updateGamepad();
@@ -427,6 +437,8 @@ export class InputManager {
     const gamepads = navigator.getGamepads();
     const gp = gamepads[0]; // Use first gamepad
     if (!gp) return;
+
+    const bindings = getKeyBindings();
 
     // Movement (Left Stick)
     const moveX = gp.axes[0];
@@ -444,25 +456,29 @@ export class InputManager {
       this.inputState.aimDirection = normalizeVec2({ x: aimX, y: aimY });
     }
 
-    // Buttons (using simplified mapping for standard Xbox controller)
-    // 0: A (Confirm), 1: B (Back), 2: X (Interact), 3: Y (Reload)
-    // 7: RT (Fire), 9: Start (Pause)
-
     // Helper to check press (once) vs hold
     const isPressed = (idx: number) => gp.buttons[idx] && gp.buttons[idx].pressed;
     const justPressed = (idx: number) => isPressed(idx) && !this.prevGamepadButtons[idx];
 
-    if (justPressed(0)) this.inputState.confirm = true; // A
-    if (justPressed(1)) this.inputState.back = true;    // B
-    if (justPressed(2)) this.inputState.interact = true; // X
-    if (justPressed(3)) this.inputState.isReloading = true; // Y
-    if (justPressed(9)) this.inputState.back = true;    // Start
+    // Check gamepad buttons against keybindings
+    for (let i = 0; i < gp.buttons.length; i++) {
+      if (justPressed(i)) {
+        if (bindings.isButtonForAction(i, 'confirm')) this.inputState.confirm = true;
+        if (bindings.isButtonForAction(i, 'back')) this.inputState.back = true;
+        if (bindings.isButtonForAction(i, 'pause')) this.inputState.back = true;
+        if (bindings.isButtonForAction(i, 'interact')) this.inputState.interact = true;
+        if (bindings.isButtonForAction(i, 'reload')) this.inputState.isReloading = true;
+        if (bindings.isButtonForAction(i, 'dash')) this.inputState.dash = true;
+        if (bindings.isButtonForAction(i, 'tactical')) this.inputState.tactical = true;
+      }
+      if (isPressed(i) && bindings.isButtonForAction(i, 'fire')) {
+        this.inputState.isFiring = true;
+      }
+    }
 
-    // Continuous states (Fire)
-    if (isPressed(7)) {
-      this.inputState.isFiring = true;
-    } else if (!this.mouseDown && !this.touchState.aimTouchId) {
-      // Only clear if mouse/touch aren't firing
+    // Clear fire if no input source is firing
+    const fireButton = bindings.getAllBindings('gamepad').fire.gamepad;
+    if (typeof fireButton === 'number' && !isPressed(fireButton) && !this.mouseDown && !this.touchState.aimTouchId) {
       this.inputState.isFiring = false;
     }
 
