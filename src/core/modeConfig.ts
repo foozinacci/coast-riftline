@@ -76,6 +76,12 @@ export interface ModeConfig {
     // Pre-game
     preGameAnimationEnabled: boolean;
     showRelicLocations: boolean;
+
+    // Bubble Zone System (Main Mode)
+    hasBubbleZones: boolean;       // Enable bubble containment zones
+    bubbleZoneCount: number;       // Number of bubble zones (5 for main)
+    teamsPerBubble: number;        // Teams paired in each bubble (2)
+    bubbleEscapeOnPlant: boolean;  // Planting relic unlocks bubble for that team only
 }
 
 /**
@@ -136,6 +142,12 @@ export const MAIN_MODE_CONFIG: ModeConfig = {
 
     preGameAnimationEnabled: true,
     showRelicLocations: true,
+
+    // Bubble Zone System - ENABLED for Main Mode
+    hasBubbleZones: true,
+    bubbleZoneCount: 5,       // 5 bubble zones
+    teamsPerBubble: 2,        // 2 teams per bubble
+    bubbleEscapeOnPlant: true,// Plant relic to escape
 };
 
 /**
@@ -194,8 +206,13 @@ export const ARENA_1V1_CONFIG: ModeConfig = {
     spawnVotingEnabled: false,
     randomSpawns: true,
 
-    preGameAnimationEnabled: false, // No relic animation
+    preGameAnimationEnabled: false,
     showRelicLocations: false,
+
+    hasBubbleZones: false,
+    bubbleZoneCount: 0,
+    teamsPerBubble: 0,
+    bubbleEscapeOnPlant: false,
 };
 
 /**
@@ -256,6 +273,11 @@ export const ARENA_1V1V1_CONFIG: ModeConfig = {
 
     preGameAnimationEnabled: false,
     showRelicLocations: false,
+
+    hasBubbleZones: false,
+    bubbleZoneCount: 0,
+    teamsPerBubble: 0,
+    bubbleEscapeOnPlant: false,
 };
 
 /**
@@ -316,6 +338,11 @@ export const ARENA_3V3_CONFIG: ModeConfig = {
 
     preGameAnimationEnabled: false,
     showRelicLocations: false,
+
+    hasBubbleZones: false,
+    bubbleZoneCount: 0,
+    teamsPerBubble: 0,
+    bubbleEscapeOnPlant: false,
 };
 
 /**
@@ -376,6 +403,11 @@ export const ARENA_3V3V3_CONFIG: ModeConfig = {
 
     preGameAnimationEnabled: false,
     showRelicLocations: false,
+
+    hasBubbleZones: false,
+    bubbleZoneCount: 0,
+    teamsPerBubble: 0,
+    bubbleEscapeOnPlant: false,
 };
 
 /**
@@ -436,6 +468,12 @@ export const TRAINING_CONFIG: ModeConfig = {
 
     preGameAnimationEnabled: true,
     showRelicLocations: true,
+
+    // Bubble zones for training (can practice the mechanic)
+    hasBubbleZones: true,
+    bubbleZoneCount: 3,       // Fewer for training
+    teamsPerBubble: 2,
+    bubbleEscapeOnPlant: true,
 };
 
 /**
