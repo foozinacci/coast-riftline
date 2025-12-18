@@ -116,8 +116,8 @@ export class ScreenManager {
         this.trainingSetup.setStartTrainingCallback((mode, difficulty) => callbacks.startGame(mode, difficulty));
         this.postMatchScreen.setReplayCallback(() => callbacks.startGame());
         this.lobbyScreen.setStartMatchCallback(() => callbacks.startGame());
-        // MainMenu Training button now navigates to training setup
-        this.mainMenu.setStartTrainingCallback(() => this.navigation.navigateTo(AppState.TRAINING_SETUP));
+        // MainMenu Training now starts directly (no extra screen)
+        this.mainMenu.setStartTrainingDirectCallback((mode, difficulty) => callbacks.startGame(mode, difficulty));
     }
 
     /**

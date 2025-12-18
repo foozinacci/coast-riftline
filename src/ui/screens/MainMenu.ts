@@ -3,8 +3,8 @@
 // Mode selection expands inline as grid cards, no separate screens
 
 import { BaseScreen, ScreenContext, FocusableElement } from './BaseScreen';
-import { AppState, GameMode } from '../../core/types';
-import { playMusic, getAudio } from '../../core/audio';
+import { AppState, GameMode, TrainingDifficulty } from '../../core/types';
+import { playMusic, getAudio, stopMusic } from '../../core/audio';
 
 const LOGO_URL = 'https://i.ibb.co/VYbnBQjD/ei-1765901346915-removebg-preview.png';
 
@@ -63,9 +63,11 @@ export class MainMenu extends BaseScreen {
     private playMenuState: PlayMenuState = 'closed';
     private selectedMode: ModeCard | null = null;
     private hoveredModeId: string | null = null;
+    private selectedDifficulty: TrainingDifficulty = TrainingDifficulty.MEDIUM;
 
     // Callbacks
     private startMatchCallback: ((mode: GameMode, ranked: boolean) => void) | null = null;
+    private startTrainingDirectCallback: ((mode: GameMode, difficulty: TrainingDifficulty) => void) | null = null;
 
     // Layout panels
     private leftPanel: PanelConfig = { x: 0, y: 0, width: 0, height: 0 };
@@ -83,6 +85,10 @@ export class MainMenu extends BaseScreen {
 
     setStartMatchCallback(callback: (mode: GameMode, ranked: boolean) => void): void {
         this.startMatchCallback = callback;
+    }
+
+    setStartTrainingDirectCallback(callback: (mode: GameMode, difficulty: TrainingDifficulty) => void): void {
+        this.startTrainingDirectCallback = callback;
     }
 
     private loadLogo(): void {
@@ -350,9 +356,32 @@ export class MainMenu extends BaseScreen {
                 this.buttonsInitialized = false;
             });
 
+        // Difficulty toggle (for Training mode only)
+        if (this.playMenuState === 'training') {
+            const diffY = backY + 45;
+            const diffLabel = `DIFFICULTY: ${this.selectedDifficulty.toUpperCase()}`;
+            const diffColor = this.selectedDifficulty === 'easy' ? 'rgba(100, 255, 150, 0.7)' :
+                this.selectedDifficulty === 'medium' ? 'rgba(255, 200, 100, 0.7)' :
+                    'rgba(255, 100, 100, 0.7)';
+
+            renderer.drawScreenRoundRect(
+                p.x + 10, diffY, p.width - 20, 35, 6,
+                'rgba(40, 50, 70, 0.8)', diffColor, 1
+            );
+            renderer.drawScreenText(
+                diffLabel,
+                p.x + p.width / 2, diffY + 17,
+                '#ffffff', 11, 'center', 'middle'
+            );
+
+            this.addButton('btn-difficulty', '',
+                p.x + 10, diffY, p.width - 20, 35,
+                () => this.cycleDifficulty());
+        }
+
         // Queue button (only shows when mode selected)
         if (this.selectedMode) {
-            const queueY = backY + 45;
+            const queueY = this.playMenuState === 'training' ? backY + 90 : backY + 45;
             renderer.drawScreenRoundRect(
                 p.x + 10, queueY, p.width - 20, 40, 6,
                 'rgba(60, 180, 120, 0.3)', 'rgba(80, 220, 150, 0.8)', 2
@@ -392,13 +421,24 @@ export class MainMenu extends BaseScreen {
         console.log(`[MainMenu] Starting ${this.playMenuState} for ${this.selectedMode.label}`);
 
         if (this.playMenuState === 'training') {
-            // For training, go directly to training setup with selected mode
-            this.navigation.navigateTo(AppState.TRAINING_SETUP);
+            // Start training directly with selected mode and difficulty
+            if (this.startTrainingDirectCallback) {
+                stopMusic();
+                this.startTrainingDirectCallback(this.selectedMode.mode, this.selectedDifficulty);
+                this.navigation.forceNavigateTo(AppState.IN_MATCH);
+            } else {
+                console.error('[MainMenu] No training callback set!');
+            }
         } else {
             // For online play, navigate to matchmaking/lobby
-            // The actual match start happens when all players ready in lobby
             this.navigation.navigateTo(AppState.MATCHMAKING);
         }
+    }
+
+    private cycleDifficulty(): void {
+        const difficulties = [TrainingDifficulty.EASY, TrainingDifficulty.MEDIUM, TrainingDifficulty.HARD];
+        const idx = difficulties.indexOf(this.selectedDifficulty);
+        this.selectedDifficulty = difficulties[(idx + 1) % difficulties.length];
     }
 
     private renderBackgroundEffect(ctx: ScreenContext): void {
