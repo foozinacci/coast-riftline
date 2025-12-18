@@ -411,34 +411,37 @@ export const ARENA_3V3V3_CONFIG: ModeConfig = {
 };
 
 /**
- * TRAINING MODE - Uses same rules as selected mode but vs bots
+ * TRAINING MODE - Placeholder config, inherits from selected mode
+ * All non-player slots are filled with bots
+ * Use getTrainingConfig(baseMode) to get actual training config
  */
 export const TRAINING_CONFIG: ModeConfig = {
     mode: GameMode.TRAINING,
     name: 'Training',
-    description: 'Practice any mode against bots',
+    description: 'Practice any mode vs bots (user vs environment)',
 
+    // Default to 1v1, but this gets overridden by selected mode
     teamCount: 2,
     playersPerTeam: 1,
     totalPlayers: 2,
 
     isRoundBased: false,
     defaultStructure: MatchStructure.BEST_OF_3,
-    allowedStructures: [MatchStructure.BEST_OF_3],
+    allowedStructures: [MatchStructure.BEST_OF_3, MatchStructure.BEST_OF_5],
     roundsToWin: 1,
 
     winCondition: 'elimination',
 
-    hasRelics: true,
-    relicCount: 3,
-    plantSiteCount: 3,
-    relicsToTriggerVault: 3, // Training can have simplified vault trigger
+    hasRelics: false,
+    relicCount: 0,
+    plantSiteCount: 0,
+    relicsToTriggerVault: 0,
 
-    hasVault: true, // Training includes vault practice
-    vaultSpawnsRandomly: true,
+    hasVault: false,
+    vaultSpawnsRandomly: false,
 
     respawnEnabled: true,
-    respawnTime: 3, // Fast respawns for training
+    respawnTime: 2, // Fast respawns for training
     respawnOrbCost: 0,
     respawnsPerRound: -1,
 
@@ -460,21 +463,36 @@ export const TRAINING_CONFIG: ModeConfig = {
     passiveHealingEnabled: true,
     passiveHealingDelay: 2,
     passiveHealingRate: 20,
-    campfireEnabled: true,
-    campfireHealRate: 50,
+    campfireEnabled: false,
+    campfireHealRate: 0,
 
     spawnVotingEnabled: false,
     randomSpawns: true,
 
-    preGameAnimationEnabled: true,
-    showRelicLocations: true,
+    preGameAnimationEnabled: false,
+    showRelicLocations: false,
 
-    // Bubble zones for training (can practice the mechanic)
-    hasBubbleZones: true,
-    bubbleZoneCount: 3,       // Fewer for training
-    teamsPerBubble: 2,
-    bubbleEscapeOnPlant: true,
+    hasBubbleZones: false,
+    bubbleZoneCount: 0,
+    teamsPerBubble: 0,
+    bubbleEscapeOnPlant: false,
 };
+
+/**
+ * Get training config based on selected mode
+ * Inherits all settings from the base mode but marks it as training
+ */
+export function getTrainingConfig(baseMode: GameMode): ModeConfig {
+    const base = getModeConfig(baseMode);
+    return {
+        ...base,
+        mode: GameMode.TRAINING,
+        name: `Training: ${base.name}`,
+        description: `Practice ${base.name} vs bots`,
+        respawnTime: Math.max(2, base.respawnTime - 2), // Faster respawns
+        preGameAnimationEnabled: false, // Quick start
+    };
+}
 
 /**
  * Get mode configuration by GameMode enum
