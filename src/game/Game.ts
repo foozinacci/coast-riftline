@@ -6,7 +6,8 @@ import {
   AppState,
   Vector2,
 } from '../core/types';
-import { GAME_CONFIG, ORB_CONFIG, COLORS } from '../core/constants';
+import { GAME_CONFIG, ORB_CONFIG, COLORS, WEAPON_CONFIGS } from '../core/constants';
+import { Loot, LootType } from '../entities/Loot';
 import {
   distanceVec2,
   circleCircleCollision,
@@ -1068,9 +1069,92 @@ export class Game {
       if (!loot.isActive) continue;
 
       if (distanceVec2(player.position, loot.position) < 30) {
-        // Apply loot effect (simplified for now)
+        // Apply loot effect based on type
+        this.applyLootEffect(player, loot);
         loot.destroy();
+
+        // Play pickup sound
+        if (player === this.localPlayer) {
+          playSfx('pickup');
+        }
         return;
+      }
+    }
+  }
+
+  /**
+   * Apply the effect of a picked up loot item to a player
+   */
+  private applyLootEffect(player: Player, loot: Loot): void {
+    const { type, itemId, quantity } = loot.lootData;
+
+    switch (type) {
+      case LootType.HEALTH: {
+        const healAmount = quantity || 25;
+        const actualHeal = Math.min(healAmount, player.state.maxHealth - player.state.health);
+        if (actualHeal > 0) {
+          player.state.health += actualHeal;
+          if (this.hud && player === this.localPlayer) {
+            this.hud.addScoreAnimation(`+${actualHeal} HP`, player.position.x, player.position.y - 30, '#44ff44');
+          }
+        }
+        break;
+      }
+
+      case LootType.SHIELD: {
+        const shieldAmount = quantity || 25;
+        const maxShield = player.state.maxShield || 100;
+        const actualShield = Math.min(shieldAmount, maxShield - player.state.shield);
+        if (actualShield > 0) {
+          player.state.shield += actualShield;
+          if (this.hud && player === this.localPlayer) {
+            this.hud.addScoreAnimation(`+${actualShield} SHIELD`, player.position.x, player.position.y - 30, '#4488ff');
+          }
+        }
+        break;
+      }
+
+      case LootType.AMMO: {
+        const ammoAmount = quantity || 30;
+        // Add ammo to current weapon's reserve (simplified: just refill current mag)
+        const needed = player.weapon.config.magazineSize - player.weapon.currentAmmo;
+        const added = Math.min(ammoAmount, needed + player.weapon.config.magazineSize);
+        player.weapon.currentAmmo = Math.min(
+          player.weapon.currentAmmo + added,
+          player.weapon.config.magazineSize
+        );
+        if (this.hud && player === this.localPlayer) {
+          this.hud.addScoreAnimation(`+AMMO`, player.position.x, player.position.y - 30, '#ffaa44');
+        }
+        break;
+      }
+
+      case LootType.WEAPON: {
+        // Switch to new weapon
+        const weaponConfig = WEAPON_CONFIGS[itemId];
+        if (weaponConfig) {
+          player.weapon = {
+            config: weaponConfig,
+            currentAmmo: weaponConfig.magazineSize,
+            isReloading: false,
+            reloadTimer: 0,
+            fireTimer: 0,
+            burstCounter: 0,
+            chargeLevel: 0,
+          };
+          if (this.hud && player === this.localPlayer) {
+            this.hud.addNotification(`Picked up ${weaponConfig.name}`, '#ffffff');
+          }
+        }
+        break;
+      }
+
+      case LootType.BACKPACK: {
+        // Backpack upgrade (currently cosmetic, could affect inventory in future)
+        if (this.hud && player === this.localPlayer) {
+          this.hud.addNotification(`Upgraded to ${itemId} Pack`, '#aa44ff');
+        }
+        break;
       }
     }
   }
