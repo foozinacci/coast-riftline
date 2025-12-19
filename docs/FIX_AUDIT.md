@@ -31,10 +31,15 @@
   - ✅ Bubbles disappear when relic is planted
 - **Remaining**: Add cover/obstructions inside bubbles (future)
 
-### 4. START Button Bleeding 🟢 FIXED
-- **Symptom**: Button appears/disappears or has visual glitches
-- **Root Cause**: Duplicate button IDs being added every frame
-- **Status**: Fixed (addButton now checks for duplicates)
+### 4. START Button/Container Bleeding 🟢 FIXED
+- **Symptom**: Game world graphics bleeding through menu panels
+- **Root Cause**: 
+  - Mode grid panel had transparent background
+  - Game world rendering even when in menu states
+- **Fixes Applied**:
+  - ✅ Added opaque background to mode grid panel
+  - ✅ Fixed game render condition to only render in match states
+  - ✅ addButton now checks for duplicates
 
 ### 5. HUD Squad/Player Display 🟢 FIXED
 - **Expected**: "ALIVE: X squads / Y players"
