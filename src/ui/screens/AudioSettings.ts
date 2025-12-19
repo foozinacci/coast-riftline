@@ -266,12 +266,13 @@ export class AudioSettings extends BaseScreen {
                 slider.value = newValue;
                 slider.onChange(newValue);
 
-                // Play appropriate preview sound
+                // Play appropriate preview sound based on slider type
                 if (slider.id === 'sfx') {
                     getAudio().play('gunshot', { category: 'sfx' });
-                } else {
+                } else if (slider.id === 'ui') {
                     playUI('confirm');
                 }
+                // No sound for master/music - they just adjust levels
 
                 console.log(`[AudioSettings] Click-set ${slider.id} to ${Math.round(newValue * 100)}%`);
             }
@@ -323,10 +324,11 @@ export class AudioSettings extends BaseScreen {
         if (slider.id === 'sfx') {
             // Play gunshot for SFX so user can hear game sounds
             getAudio().play('gunshot', { category: 'sfx' });
-        } else {
-            // Play confirm sound for UI/Master/Music
+        } else if (slider.id === 'ui') {
+            // Play confirm sound for UI
             playUI('confirm');
         }
+        // No sound for master/music - they just adjust levels
 
         console.log(`[AudioSettings] Adjusted ${slider.id} to ${Math.round(newValue * 100)}%`);
     }
