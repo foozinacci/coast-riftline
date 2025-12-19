@@ -285,11 +285,11 @@ export class MainMenu extends BaseScreen {
                 ? RANKED_MODES
                 : TRAINING_MODES;
 
-        // CRITICAL: Draw opaque background for entire panel to prevent bleed-through
-        // Extend to bottom of screen to cover any overflow
+        // CRITICAL: Draw opaque background for FULL SCREEN below panel top
+        // This covers any bleeding elements from other UI (EXIT button, etc.)
         renderer.drawScreenRect(
-            p.x - 5, p.y - 5,
-            p.width + 10, screenHeight - p.y + 10,
+            0, p.y - 10,
+            ctx.screenWidth, screenHeight - p.y + 20,
             '#0f1218'  // Solid dark background matching theme
         );
 
@@ -366,9 +366,18 @@ export class MainMenu extends BaseScreen {
         const buttonHeight = 30;
         const buttonGap = 5;
 
-        // Back button
+        // Back button - draw visual AND add hitbox
         const backY = cardsEndY + 5;
-        this.addButton('btn-mode-back', '← BACK',
+        renderer.drawScreenRoundRect(
+            p.x + 10, backY, p.width - 20, buttonHeight, 6,
+            'rgba(30, 35, 45, 0.9)', 'rgba(70, 80, 100, 0.4)', 1
+        );
+        renderer.drawScreenText(
+            '← BACK',
+            p.x + p.width / 2, backY + buttonHeight / 2,
+            'rgba(240, 240, 240, 0.9)', 12, 'center', 'middle'
+        );
+        this.addButton('btn-mode-back', '',
             p.x + 10, backY, p.width - 20, buttonHeight,
             () => {
                 this.playMenuState = 'closed';
