@@ -427,7 +427,24 @@ export class Game {
       const squad = this.squadManager.getSquad(squadId);
       if (!squad) continue;
 
-      const spawnPos = this.spawnVotingManager.getSpawnPosition(location, side);
+      let spawnPos = this.spawnVotingManager.getSpawnPosition(location, side);
+
+      // If bubble zones are active, override spawn position to be inside assigned bubble
+      if (this.bubbleZones.length > 0) {
+        const assignedBubble = this.bubbleZones.find(b =>
+          b.state.assignedTeams.includes(squadId)
+        );
+        if (assignedBubble) {
+          // Spawn inside the bubble with some distance from center
+          const angle = Math.random() * Math.PI * 2;
+          const distance = assignedBubble.bubbleRadius * 0.2; // Near center
+          spawnPos = {
+            x: assignedBubble.position.x + Math.cos(angle) * distance,
+            y: assignedBubble.position.y + Math.sin(angle) * distance,
+          };
+          console.log(`[Game] Squad ${squadId} spawning inside bubble at (${spawnPos.x.toFixed(0)}, ${spawnPos.y.toFixed(0)})`);
+        }
+      }
 
       // Determine team size based on mode
       let playersPerTeam = 3;
