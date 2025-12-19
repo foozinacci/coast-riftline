@@ -724,6 +724,8 @@ export class Game {
     // Also check isMatchActive to handle the transition properly
     const isMenuState = currentAppState !== AppState.IN_MATCH && currentAppState !== AppState.PAUSE_MENU;
     if (this.useMenuSystem && isMenuState) {
+      // Update input state for menus (no player position needed, just key state)
+      this.input.update({ x: 0, y: 0 });
       this.screenManager.handleInput(this.input);
       return;
     }
