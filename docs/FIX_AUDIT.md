@@ -22,20 +22,21 @@
 
 ## High Priority Issues (Core Gameplay)
 
-### 3. Bubble Zones Behavior 🟡
-- **Current**: Bubbles appear but don't follow design spec
-- **Expected**: 
-  - 5 bubbles, never touching
-  - Each contains: 1 relic, 1 plant site, 2 teams, cover obstructions
-  - Disappear when relic is planted
-- **Status**: Partial fix (disappear on plant added)
+### 3. Bubble Zones Behavior 🟢 FIXED
+- **Current**: Bubbles now properly implemented
+- **Fixes Applied**:
+  - ✅ Relics and plant sites moved inside their bubbles
+  - ✅ Players confined to bubble until relic planted
+  - ✅ Players spawn inside their assigned bubble
+  - ✅ Bubbles disappear when relic is planted
+- **Remaining**: Add cover/obstructions inside bubbles (future)
 
-### 4. START Button Bleeding 🟡
+### 4. START Button Bleeding 🟢 FIXED
 - **Symptom**: Button appears/disappears or has visual glitches
 - **Root Cause**: Duplicate button IDs being added every frame
 - **Status**: Fixed (addButton now checks for duplicates)
 
-### 5. HUD Squad/Player Display 🟢
+### 5. HUD Squad/Player Display 🟢 FIXED
 - **Expected**: "ALIVE: X squads / Y players"
 - **Status**: FIXED
 
