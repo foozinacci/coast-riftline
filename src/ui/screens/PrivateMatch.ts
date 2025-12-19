@@ -172,6 +172,16 @@ export class PrivateMatch extends BaseScreen {
             const code = this.generateCode();
 
             if (supabaseService.isConfigured()) {
+                // Ensure user is signed in first
+                if (!supabaseService.getCurrentUser()) {
+                    console.log('[PrivateMatch] No user, signing in anonymously...');
+                    const profile = await supabaseService.signInAnonymously();
+                    if (!profile) {
+                        throw new Error('Failed to sign in');
+                    }
+                    console.log('[PrivateMatch] Signed in as:', profile.display_name);
+                }
+
                 // Online: Create via Supabase
                 const lobby = await supabaseService.createLobby({
                     mode: this.selectedGameMode,
@@ -213,7 +223,7 @@ export class PrivateMatch extends BaseScreen {
             this.clearButtons();
         } catch (error) {
             console.error('Create lobby failed:', error);
-            this.errorMessage = 'Failed to create lobby';
+            this.errorMessage = `Failed to create lobby: ${error instanceof Error ? error.message : 'Unknown error'}`;
         }
 
         this.isLoading = false;
@@ -231,6 +241,15 @@ export class PrivateMatch extends BaseScreen {
 
         try {
             if (supabaseService.isConfigured()) {
+                // Ensure user is signed in first
+                if (!supabaseService.getCurrentUser()) {
+                    console.log('[PrivateMatch] No user, signing in anonymously...');
+                    const profile = await supabaseService.signInAnonymously();
+                    if (!profile) {
+                        throw new Error('Failed to sign in');
+                    }
+                }
+
                 // Online: Join via Supabase
                 const lobby = await supabaseService.joinByCode(code);
                 if (lobby) {

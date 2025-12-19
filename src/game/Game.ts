@@ -331,6 +331,39 @@ export class Game {
         );
         console.log(`[Game] Created ${this.bubbleZones.length} bubble zones`);
 
+        // CRITICAL: Move relics and plant sites inside their assigned bubbles
+        for (const bubble of this.bubbleZones) {
+          // Find and move the relic inside the bubble
+          const relic = this.map.relics.find(r => r.id === bubble.state.relicId);
+          if (relic) {
+            // Place relic at random position inside bubble (not too close to center or edge)
+            const angle = Math.random() * Math.PI * 2;
+            const distance = bubble.bubbleRadius * (0.3 + Math.random() * 0.4); // 30-70% of radius
+            relic.position = {
+              x: bubble.position.x + Math.cos(angle) * distance,
+              y: bubble.position.y + Math.sin(angle) * distance,
+            };
+            console.log(`[Game] Moved relic ${relic.id} inside bubble at (${relic.position.x.toFixed(0)}, ${relic.position.y.toFixed(0)})`);
+          }
+
+          // Find and move the plant site inside the bubble (opposite side from relic)
+          const plantSite = this.map.plantSites.find(s => s.id === bubble.state.plantSiteId);
+          if (plantSite && relic) {
+            // Place plant site on opposite side of bubble from relic
+            const relicAngle = Math.atan2(
+              relic.position.y - bubble.position.y,
+              relic.position.x - bubble.position.x
+            );
+            const oppositeAngle = relicAngle + Math.PI + (Math.random() - 0.5) * 0.5; // Opposite ± 30°
+            const distance = bubble.bubbleRadius * (0.4 + Math.random() * 0.3); // 40-70% of radius
+            plantSite.position = {
+              x: bubble.position.x + Math.cos(oppositeAngle) * distance,
+              y: bubble.position.y + Math.sin(oppositeAngle) * distance,
+            };
+            console.log(`[Game] Moved plant site ${plantSite.id} inside bubble at (${plantSite.position.x.toFixed(0)}, ${plantSite.position.y.toFixed(0)})`);
+          }
+        }
+
         // Set up callback to deactivate bubble when its relic is planted
         this.relicManager.setOnRelicPlanted((relicId: string) => {
           const bubble = this.bubbleZones.find(b => b.state.relicId === relicId);
@@ -852,6 +885,16 @@ export class Game {
           const pushDist = player.radius + obstacle.radius - dist;
           player.position.x += (dir.x / dist) * pushDist;
           player.position.y += (dir.y / dist) * pushDist;
+        }
+      }
+
+      // Check bubble zone confinement
+      if (this.bubbleZones.length > 0) {
+        for (const bubble of this.bubbleZones) {
+          if (bubble.isTeamTrapped(player.squadId)) {
+            // Player is trapped in this bubble - constrain position
+            player.position = bubble.constrainPosition(player.position);
+          }
         }
       }
     }

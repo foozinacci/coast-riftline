@@ -1,11 +1,17 @@
-# RIFTLINE Fix Audit - December 18, 2024
+# RIFTLINE Fix Audit - December 19, 2024
 
 ## Critical Issues (Game-Breaking)
 
-### 1. Navigation Loop / Audio Freeze 🔴
+### 1. Navigation Loop / Audio Freeze 🟢 FIXED
 - **Symptom**: Console shows rapid looping between `settings_root -> audio_settings -> settings_root`
 - **Impact**: Freezes audio completely
-- **Root Cause**: TBD - investigating
+- **Root Cause**: Input state (`back`, `confirm`) was never reset on keyup
+- **Fix**: Added keyup handlers in `input.ts` to reset back/confirm states
+
+### 1b. Audio Settings Not Responding 🟢 FIXED  
+- **Symptom**: Arrow keys navigate away instead of adjusting sliders
+- **Root Cause**: ScreenManager didn't route left/right input to screens with custom handleInput
+- **Fix**: Added custom input routing in ScreenManager for screens with handleInput method
 
 ### 2. Private Match Creation Fails 🔴  
 - **Symptom**: "Failed to create lobby" error when clicking CREATE LOBBY
