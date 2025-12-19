@@ -109,6 +109,12 @@ export class AudioSettings extends BaseScreen {
 
         const elementIds = this.focusableElements.map(el => el.id);
         this.navigation.setFocusableElements(elementIds);
+
+        // CRITICAL: Set initial focus to the first slider, not the BACK button
+        if (this.sliders.length > 0) {
+            this.navigation.focusElement(`slider-${this.sliders[0].id}`);
+        }
+
         this.buttonsInitialized = true;
     }
 
