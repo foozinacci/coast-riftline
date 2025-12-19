@@ -258,6 +258,8 @@ export class AudioSettings extends BaseScreen {
     }
 
     handleInput(input: { direction?: string; confirm?: boolean; back?: boolean }): void {
+        console.log('[AudioSettings.handleInput] Called with:', input);
+
         if (input.back) {
             this.navigation.goBack();
             return;
