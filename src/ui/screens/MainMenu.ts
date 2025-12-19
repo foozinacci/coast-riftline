@@ -285,12 +285,12 @@ export class MainMenu extends BaseScreen {
                 ? RANKED_MODES
                 : TRAINING_MODES;
 
-        // CRITICAL: Draw opaque background for FULL SCREEN below panel top
-        // This covers any bleeding elements from other UI (EXIT button, etc.)
+        // CRITICAL: Draw opaque background for FULL SCREEN to cover all bleeding elements
+        // Cover from top of screen to bottom to hide any background decorations
         renderer.drawScreenRect(
-            0, p.y - 10,
-            ctx.screenWidth, screenHeight - p.y + 20,
-            '#0f1218'  // Solid dark background matching theme
+            0, 0,
+            ctx.screenWidth, screenHeight,
+            '#0a0d12'  // Solid dark background matching main menu bg
         );
 
         // Panel border/container

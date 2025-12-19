@@ -217,7 +217,7 @@ export class ScreenManager {
         if (now - this.lastFocusTime > this.FOCUS_COOLDOWN_MS) {
             // Check if screen has custom handleInput method (like AudioSettings)
             const screen = this.currentScreen as any;
-            if (typeof screen.handleInput === 'function') {
+            if (screen && typeof screen.handleInput === 'function') {
                 // Route direction input to screen's custom handler
                 let direction: string | undefined;
                 if (inputState.moveDirection.y < -threshold) {
@@ -234,7 +234,7 @@ export class ScreenManager {
                     screen.handleInput({ direction });
                     this.lastFocusTime = now;
                 }
-            } else {
+            } else if (this.currentScreen) {
                 // Default focus navigation for regular screens
                 if (inputState.moveDirection.y < -threshold) {
                     this.currentScreen.navigateFocus('up');
