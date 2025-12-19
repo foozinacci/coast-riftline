@@ -215,12 +215,34 @@ export class ScreenManager {
         const now = performance.now();
 
         if (now - this.lastFocusTime > this.FOCUS_COOLDOWN_MS) {
-            if (inputState.moveDirection.y < -threshold) {
-                this.currentScreen.navigateFocus('up');
-                this.lastFocusTime = now;
-            } else if (inputState.moveDirection.y > threshold) {
-                this.currentScreen.navigateFocus('down');
-                this.lastFocusTime = now;
+            // Check if screen has custom handleInput method (like AudioSettings)
+            const screen = this.currentScreen as any;
+            if (typeof screen.handleInput === 'function') {
+                // Route direction input to screen's custom handler
+                let direction: string | undefined;
+                if (inputState.moveDirection.y < -threshold) {
+                    direction = 'up';
+                } else if (inputState.moveDirection.y > threshold) {
+                    direction = 'down';
+                } else if (inputState.moveDirection.x < -threshold) {
+                    direction = 'left';
+                } else if (inputState.moveDirection.x > threshold) {
+                    direction = 'right';
+                }
+
+                if (direction) {
+                    screen.handleInput({ direction });
+                    this.lastFocusTime = now;
+                }
+            } else {
+                // Default focus navigation for regular screens
+                if (inputState.moveDirection.y < -threshold) {
+                    this.currentScreen.navigateFocus('up');
+                    this.lastFocusTime = now;
+                } else if (inputState.moveDirection.y > threshold) {
+                    this.currentScreen.navigateFocus('down');
+                    this.lastFocusTime = now;
+                }
             }
         }
     }
