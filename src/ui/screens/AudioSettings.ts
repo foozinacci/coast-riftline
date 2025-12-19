@@ -3,7 +3,7 @@
 
 import { BaseScreen, ScreenContext, FocusableElement } from './BaseScreen';
 import { AppState } from '../../core/types';
-import { getAudio } from '../../core/audio';
+import { getAudio, playUI } from '../../core/audio';
 
 interface SliderConfig {
     id: string;
@@ -297,6 +297,15 @@ export class AudioSettings extends BaseScreen {
         const newValue = Math.max(0, Math.min(1, slider.value + delta));
         slider.value = newValue;
         slider.onChange(newValue);
+
+        // Play appropriate preview sound based on slider type
+        if (slider.id === 'sfx') {
+            // Play gunshot for SFX so user can hear game sounds
+            getAudio().play('gunshot', { category: 'sfx' });
+        } else {
+            // Play click for UI/Master/Music
+            playUI('click');
+        }
 
         console.log(`[AudioSettings] Adjusted ${slider.id} to ${Math.round(newValue * 100)}%`);
     }
