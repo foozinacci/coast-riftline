@@ -308,14 +308,20 @@ export class MainMenu extends BaseScreen {
             '#4cc9f0', 16, 'center', 'middle'
         );
 
-        // Grid container
-        const gridY = p.y + 80;
-        const gridHeight = p.height - 120;
+        // Grid container - calculate available space
+        const gridY = p.y + 70; // Reduced from 80
+        const availableHeight = p.height - 70; // Space below title
 
-        // Cards layout - 2 columns
+        // Calculate how many rows we need and size cards to fit
+        const numRows = Math.ceil(modes.length / 2);
+        // Reserve space for: cards + BACK button (30) + DIFFICULTY (30) + START (35) + gaps
+        const reservedButtonHeight = this.playMenuState === 'training' ? 110 : 75;
+        const availableForCards = availableHeight - reservedButtonHeight;
+
+        // Cards layout - 2 columns, dynamic height to fit
         const cardWidth = (p.width - 30) / 2;
-        const cardHeight = 70;
-        const gap = 8;
+        const gap = 6;
+        const cardHeight = Math.min(60, (availableForCards - (numRows - 1) * gap) / numRows);
 
         modes.forEach((mode, i) => {
             const col = i % 2;
@@ -327,52 +333,43 @@ export class MainMenu extends BaseScreen {
             const isHovered = this.hoveredModeId === mode.id;
 
             // Card background
-            const bgColor = isSelected
-                ? 'rgba(80, 200, 255, 0.2)'
-                : isHovered
-                    ? 'rgba(60, 80, 120, 0.6)'
-                    : 'rgba(30, 40, 55, 0.8)';
-            const borderColor = isSelected
-                ? 'rgba(80, 200, 255, 0.9)'
-                : 'rgba(60, 70, 90, 0.5)';
-
+            const bgColor = isSelected ? 'rgba(60, 90, 120, 0.6)' : 'rgba(25, 30, 45, 0.8)';
+            const borderColor = isSelected ? 'rgba(80, 180, 255, 0.8)' : 'rgba(50, 60, 80, 0.6)';
             renderer.drawScreenRoundRect(cardX, cardY, cardWidth, cardHeight, 6, bgColor, borderColor, isSelected ? 2 : 1);
 
             // Mode label
             renderer.drawScreenText(
                 mode.label,
-                cardX + cardWidth / 2, cardY + 22,
-                isSelected ? '#ffffff' : 'rgba(220, 230, 255, 0.9)',
-                14,
-                'center', 'middle'
+                cardX + cardWidth / 2, cardY + cardHeight * 0.35,
+                isSelected ? '#ffffff' : '#b8c0d0', 13, 'center', 'middle'
             );
 
             // Description
             renderer.drawScreenText(
                 mode.shortDesc,
-                cardX + cardWidth / 2, cardY + 42,
-                'rgba(140, 150, 180, 0.7)',
-                10,
-                'center', 'middle'
+                cardX + cardWidth / 2, cardY + cardHeight * 0.6,
+                'rgba(140, 150, 170, 0.9)', 9, 'center', 'middle'
             );
 
             // Player count
             renderer.drawScreenText(
                 `${mode.players}p`,
-                cardX + cardWidth / 2, cardY + 58,
-                'rgba(100, 120, 150, 0.5)',
-                9,
-                'center', 'middle'
+                cardX + cardWidth / 2, cardY + cardHeight * 0.82,
+                'rgba(100, 110, 130, 0.7)', 9, 'center', 'middle'
             );
 
-            // Add click handler for this card
             this.addModeCardHitbox(mode, cardX, cardY, cardWidth, cardHeight);
         });
 
+        // Position action buttons below the card grid
+        const cardsEndY = gridY + numRows * (cardHeight + gap);
+        const buttonHeight = 30;
+        const buttonGap = 5;
+
         // Back button
-        const backY = gridY + Math.ceil(modes.length / 2) * (cardHeight + gap) + 10;
+        const backY = cardsEndY + 5;
         this.addButton('btn-mode-back', '← BACK',
-            p.x + 10, backY, p.width - 20, 35,
+            p.x + 10, backY, p.width - 20, buttonHeight,
             () => {
                 this.playMenuState = 'closed';
                 this.selectedMode = null;
@@ -380,33 +377,37 @@ export class MainMenu extends BaseScreen {
             });
 
         // Difficulty toggle (for Training mode only)
+        let nextY = backY + buttonHeight + buttonGap;
         if (this.playMenuState === 'training') {
-            const diffY = backY + 45;
+            const diffY = nextY;
             const diffLabel = `DIFFICULTY: ${this.selectedDifficulty.toUpperCase()}`;
             const diffColor = this.selectedDifficulty === 'easy' ? 'rgba(100, 255, 150, 0.7)' :
                 this.selectedDifficulty === 'medium' ? 'rgba(255, 200, 100, 0.7)' :
                     'rgba(255, 100, 100, 0.7)';
 
             renderer.drawScreenRoundRect(
-                p.x + 10, diffY, p.width - 20, 35, 6,
+                p.x + 10, diffY, p.width - 20, buttonHeight, 6,
                 'rgba(40, 50, 70, 0.8)', diffColor, 1
             );
             renderer.drawScreenText(
                 diffLabel,
-                p.x + p.width / 2, diffY + 17,
-                '#ffffff', 11, 'center', 'middle'
+                p.x + p.width / 2, diffY + buttonHeight / 2,
+                '#ffffff', 10, 'center', 'middle'
             );
 
             this.addButton('btn-difficulty', '',
-                p.x + 10, diffY, p.width - 20, 35,
+                p.x + 10, diffY, p.width - 20, buttonHeight,
                 () => this.cycleDifficulty());
+
+            nextY = diffY + buttonHeight + buttonGap;
         }
 
-        // Queue button (only shows when mode selected)
+        // Queue/Start button (only shows when mode selected)
         if (this.selectedMode) {
-            const queueY = this.playMenuState === 'training' ? backY + 90 : backY + 45;
+            const queueY = nextY;
+            const startHeight = 35;
             renderer.drawScreenRoundRect(
-                p.x + 10, queueY, p.width - 20, 40, 6,
+                p.x + 10, queueY, p.width - 20, startHeight, 6,
                 'rgba(60, 180, 120, 0.3)', 'rgba(80, 220, 150, 0.8)', 2
             );
 
@@ -414,12 +415,12 @@ export class MainMenu extends BaseScreen {
             const actionText = this.playMenuState === 'training' ? '▶ START' : '▶ FIND MATCH';
             renderer.drawScreenText(
                 actionText,
-                p.x + p.width / 2, queueY + 20,
-                '#ffffff', 14, 'center', 'middle'
+                p.x + p.width / 2, queueY + startHeight / 2,
+                '#ffffff', 13, 'center', 'middle'
             );
 
             this.addButton('btn-find-match', '',
-                p.x + 10, queueY, p.width - 20, 40,
+                p.x + 10, queueY, p.width - 20, startHeight,
                 () => this.startQueue());
         }
     }
