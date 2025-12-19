@@ -277,13 +277,36 @@ export class MainMenu extends BaseScreen {
     }
 
     private renderModeGrid(ctx: ScreenContext): void {
-        const { renderer } = ctx;
+        const { renderer, screenHeight } = ctx;
         const p = this.rightPanel;
         const modes = this.playMenuState === 'quickplay'
             ? QUICK_PLAY_MODES
             : this.playMenuState === 'ranked'
                 ? RANKED_MODES
                 : TRAINING_MODES;
+
+        // CRITICAL: Draw opaque background for entire panel to prevent bleed-through
+        // Extend to bottom of screen to cover any overflow
+        renderer.drawScreenRect(
+            p.x - 5, p.y - 5,
+            p.width + 10, screenHeight - p.y + 10,
+            '#0f1218'  // Solid dark background matching theme
+        );
+
+        // Panel border/container
+        renderer.drawScreenRoundRect(
+            p.x, p.y, p.width, p.height, 8,
+            'rgba(20, 25, 35, 0.95)', 'rgba(60, 70, 90, 0.5)', 1
+        );
+
+        // Title
+        const title = this.playMenuState === 'quickplay' ? 'QUICK PLAY'
+            : this.playMenuState === 'ranked' ? 'RANKED'
+                : 'TRAINING';
+        renderer.drawScreenText(
+            title, p.x + p.width / 2, p.y + 40,
+            '#4cc9f0', 16, 'center', 'middle'
+        );
 
         // Grid container
         const gridY = p.y + 80;

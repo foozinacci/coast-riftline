@@ -1426,13 +1426,19 @@ export class Game {
 
     this.renderer.beginFrame();
 
-    // Determine if we should render the game world or menu
-    const shouldRenderGame = !this.useMenuSystem ||
-      currentAppState === AppState.IN_MATCH ||
+    // Determine if we should render the game world
+    // ONLY render game when:
+    // 1. Menu system is disabled (legacy mode)
+    // 2. OR we're actively in a match-related state
+    const isInMatchState = currentAppState === AppState.IN_MATCH ||
       currentAppState === AppState.PAUSE_MENU ||
-      currentAppState === AppState.POST_MATCH;
+      currentAppState === AppState.POST_MATCH ||
+      currentAppState === AppState.DEATH_OVERLAY;
 
-    if (shouldRenderGame && (this.phase === GamePhase.PLAYING || this.phase === GamePhase.SPAWN_VOTE || this.phase === GamePhase.COUNTDOWN)) {
+    const shouldRenderGame = (!this.useMenuSystem || isInMatchState) &&
+      (this.phase === GamePhase.PLAYING || this.phase === GamePhase.SPAWN_VOTE || this.phase === GamePhase.COUNTDOWN);
+
+    if (shouldRenderGame) {
       // Render game world
       this.map.render(this.renderer);
       this.riftline.render(this.renderer);
