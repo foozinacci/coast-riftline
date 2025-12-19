@@ -23,6 +23,7 @@ export class AudioSettings extends BaseScreen {
     private sliderHeight: number = 12;
     private sliderGap: number = 70;
     private startY: number = 140;
+    private lastMouseX: number = 0;  // Track last mouse X for click-to-set
 
     constructor() {
         super(AppState.AUDIO_SETTINGS);
@@ -224,6 +225,8 @@ export class AudioSettings extends BaseScreen {
 
     // Override handleMouseMove to detect slider clicks
     handleMouseMove(x: number, y: number): void {
+        this.lastMouseX = x;  // Track for click-to-set
+
         // Check if mouse is over any slider
         for (let i = 0; i < this.sliders.length; i++) {
             const slider = this.sliders[i];
@@ -242,7 +245,7 @@ export class AudioSettings extends BaseScreen {
         super.handleMouseMove(x, y);
     }
 
-    // Override handleConfirm to handle slider clicks differently
+    // Override handleConfirm to handle slider clicks with click-to-set
     handleConfirm(): void {
         const focusedId = this.navigation.getFocusState().currentFocusId;
 
@@ -252,9 +255,27 @@ export class AudioSettings extends BaseScreen {
             return;
         }
 
-        // If a slider is focused/clicked, adjust it based on mouse position
-        // For now, clicking a slider just selects it (arrow keys adjust)
-        // We could also implement click-to-set-value here
+        // If a slider is focused, set value based on click position
+        if (focusedId?.startsWith('slider-')) {
+            const slider = this.sliders[this.selectedSliderIndex];
+            if (slider && slider.trackX !== undefined && slider.trackWidth !== undefined) {
+                // Calculate value from mouse X position
+                const relativeX = this.lastMouseX - slider.trackX;
+                const newValue = Math.max(0, Math.min(1, relativeX / slider.trackWidth));
+
+                slider.value = newValue;
+                slider.onChange(newValue);
+
+                // Play appropriate preview sound
+                if (slider.id === 'sfx') {
+                    getAudio().play('gunshot', { category: 'sfx' });
+                } else {
+                    playUI('click');
+                }
+
+                console.log(`[AudioSettings] Click-set ${slider.id} to ${Math.round(newValue * 100)}%`);
+            }
+        }
     }
 
     handleInput(input: { direction?: string; confirm?: boolean; back?: boolean }): void {
