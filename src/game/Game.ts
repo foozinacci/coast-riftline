@@ -1526,7 +1526,11 @@ export class Game {
     }
 
     // Render menu overlay if in menu state
-    if (this.useMenuSystem && this.screenManager.handlesCurrentState()) {
+    const shouldRenderMenu = this.useMenuSystem && this.screenManager.handlesCurrentState();
+    if (Math.random() < 0.002) { // Log occasionally
+      console.log(`[Game.render] AppState: ${currentAppState}, handlesCurrentState: ${this.screenManager.handlesCurrentState()}, shouldRenderMenu: ${shouldRenderMenu}`);
+    }
+    if (shouldRenderMenu) {
       this.screenManager.render(this.renderer, screenSize.x, screenSize.y);
     }
 
